@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const canvas = document.getElementById('twibbonCanvas');
   const ctx = canvas.getContext('2d');
   const canvasContainer = document.getElementById('canvasContainer');
+  const outputVideoPreview = document.getElementById('outputVideoPreview');
   const overlayInstruction = document.getElementById('overlayInstruction');
   const recordingBadge = document.getElementById('recordingBadge');
   const recTimerEl = document.getElementById('recTimer');
@@ -385,6 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
     sliderRotate.value = 0;
     valRotate.textContent = '0°';
     
+    resetOutputPreview();
     draw();
   }
 
@@ -397,6 +399,19 @@ document.addEventListener('DOMContentLoaded', () => {
   function hideQuickPanels() {
     if (quickAdjustPanel) quickAdjustPanel.style.display = 'none';
     if (quickExportPanel) quickExportPanel.style.display = 'none';
+  }
+
+  // Helper to reset the video preview player and show the interactive canvas again
+  function resetOutputPreview() {
+    if (canvas) canvas.style.display = 'block';
+    if (outputVideoPreview) {
+      outputVideoPreview.style.display = 'none';
+      outputVideoPreview.src = '';
+    }
+    // Restore drag helper instruction if media is active
+    if (overlayInstruction && mediaElement) {
+      overlayInstruction.style.opacity = '0.85';
+    }
   }
 
   // --- CUSTOM FRAME HANDLERS ---
@@ -778,23 +793,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // Combine tracks to composite stream
     const compositeStream = new MediaStream(tracks);
     
-    // Initialize MediaRecorder
-    let options = { mimeType: 'video/webm;codecs=vp9,opus' };
+    // Initialize MediaRecorder with high quality options (HD / 6 Mbps bitrate)
+    const BITRATE = 6000000; // 6 Mbps
+    let options = { mimeType: 'video/webm;codecs=vp9,opus', videoBitsPerSecond: BITRATE };
     if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-      options = { mimeType: 'video/webm;codecs=vp8,opus' };
+      options = { mimeType: 'video/webm;codecs=vp8,opus', videoBitsPerSecond: BITRATE };
     }
     if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-      options = { mimeType: 'video/webm' };
+      options = { mimeType: 'video/webm', videoBitsPerSecond: BITRATE };
     }
     if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-      options = { mimeType: 'video/mp4' };
+      options = { mimeType: 'video/mp4', videoBitsPerSecond: BITRATE };
     }
     
     try {
       mediaRecorder = new MediaRecorder(compositeStream, options);
     } catch (e) {
       console.error('MediaRecorder initialization failed, trying default options', e);
-      mediaRecorder = new MediaRecorder(compositeStream);
+      mediaRecorder = new MediaRecorder(compositeStream, { videoBitsPerSecond: BITRATE });
     }
     
     mediaRecorder.ondataavailable = (e) => {
@@ -870,6 +886,15 @@ document.addEventListener('DOMContentLoaded', () => {
     window.lastExportedBlob = blob;
     window.lastExportedUrl = url;
     window.lastExportedName = videoFileName;
+    
+    // Show recorded video preview directly in the preview container
+    if (canvas) canvas.style.display = 'none';
+    if (overlayInstruction) overlayInstruction.style.opacity = '0';
+    if (outputVideoPreview) {
+      outputVideoPreview.style.display = 'block';
+      outputVideoPreview.src = url;
+      outputVideoPreview.play().catch(e => console.log("Auto-preview play blocked:", e));
+    }
     
     // Set UI tab to export tab automatically
     document.querySelector('.tab-btn[data-tab="tab-export"]').click();
