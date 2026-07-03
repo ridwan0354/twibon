@@ -823,11 +823,11 @@ document.addEventListener('DOMContentLoaded', () => {
     
     mediaRecorder.start(100); // chunk size in ms
     
-    // If it's camera recording, automatically stop after 15 seconds limit
+    // If it's camera recording, automatically stop after 30 seconds limit
     if (mediaType === 'camera') {
       setTimeout(() => {
         if (isRecording) stopCanvasRecording();
-      }, 15000);
+      }, 30000);
     }
   }
 
@@ -838,7 +838,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Reset camera controls if we recorded from camera
     if (mediaType === 'camera') {
-      btnRecordVideo.innerHTML = '<i class="fa-solid fa-circle"></i> Rekam Video (Maks 15s)';
+      btnRecordVideo.innerHTML = '<i class="fa-solid fa-circle"></i> Rekam Video (Maks 30s)';
       btnRecordVideo.className = 'btn btn-danger btn-sm';
       btnCapturePhoto.style.display = 'inline-flex';
       btnCloseCamera.style.display = 'inline-flex';
@@ -938,8 +938,14 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('Gagal memutar video untuk render canvas.');
       }
     } else if (mediaType === 'camera') {
-      // Live camera needs to be recorded first
-      alert('Pilih Rekam Video atau Ambil Foto di tab Media terlebih dahulu untuk mengekspor kamera!');
+      if (window.lastExportedUrl && window.lastExportedBlob) {
+        const link = document.createElement('a');
+        link.download = window.lastExportedName;
+        link.href = window.lastExportedUrl;
+        link.click();
+      } else {
+        alert('Silakan ambil foto atau rekam video terlebih dahulu sebelum mengunduh hasil!');
+      }
     }
   }
 
@@ -962,6 +968,9 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('Silakan klik "Download Hasil" terlebih dahulu untuk mengekspor video sebelum dibagikan.');
         return;
       }
+    } else if (mediaType === 'camera') {
+      alert('Silakan ambil foto atau rekam video terlebih dahulu sebelum membagikan hasil!');
+      return;
     }
     
     if (!fileToShare) return;
