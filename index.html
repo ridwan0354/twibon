@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Twibbonize CAI - Buat Twibbon Foto & Video Premium</title>
+  <!-- Google Fonts: Montserrat & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+  <!-- FontAwesome for Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-area">
+        <div class="logo-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+        <div class="logo-text">
+          <h1>Twibbon<span>CAI</span></h1>
+          <p>Kreasi Foto & Video Instan Daerah Lombok</p>
+        </div>
+      </div>
+      <div class="header-badge">
+        <span class="badge-dot"></span> Live Editor
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="app-workspace">
+      <!-- Editor Canvas & Preview Area -->
+      <section class="editor-section">
+        <div class="canvas-card">
+          <div class="canvas-container" id="canvasContainer">
+            <canvas id="twibbonCanvas" width="1080" height="1080"></canvas>
+            
+            <!-- Interactive Helpers / Overlay Controls -->
+            <div class="canvas-overlay-instruction" id="overlayInstruction">
+              <i class="fa-solid fa-up-down-left-right"></i>
+              <span>Geser & zoom foto/video langsung di sini</span>
+            </div>
+
+            <!-- Video Recording Indicator -->
+            <div class="recording-badge" id="recordingBadge">
+              <span class="rec-dot"></span> REC <span id="recTimer">00:00</span>
+            </div>
+          </div>
+          
+          <div class="canvas-actions">
+            <button id="btnFlip" class="btn-icon" title="Cerminkan Foto (Flip Horizontal)">
+              <i class="fa-solid fa-arrows-left-right"></i>
+            </button>
+            <button id="btnRotateCcw" class="btn-icon" title="Putar Kiri">
+              <i class="fa-solid fa-rotate-left"></i>
+            </button>
+            <button id="btnRotateCw" class="btn-icon" title="Putar Kanan">
+              <i class="fa-solid fa-rotate-right"></i>
+            </button>
+            <button id="btnReset" class="btn-icon text-danger" title="Reset Posisi">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sidebar Controls -->
+      <section class="controls-section">
+        <!-- Tabs Menu -->
+        <nav class="controls-tabs">
+          <button class="tab-btn active" data-tab="tab-frame">
+            <i class="fa-solid fa-border-all"></i> Frame
+          </button>
+          <button class="tab-btn" data-tab="tab-media">
+            <i class="fa-solid fa-photo-film"></i> Media
+          </button>
+          <button class="tab-btn" data-tab="tab-adjust">
+            <i class="fa-solid fa-sliders"></i> Atur
+          </button>
+          <button class="tab-btn" data-tab="tab-export">
+            <i class="fa-solid fa-download"></i> Simpan
+          </button>
+        </nav>
+
+        <!-- Tab Content Area -->
+        <div class="tab-content-wrapper">
+          <!-- TAB 1: FRAME -->
+          <div class="tab-content active" id="tab-frame">
+            <h3 class="section-title">Pilih Bingkai (Twibbon Frame)</h3>
+            <p class="section-desc">Pilih bingkai resmi CAI Lombok atau unggah desain bingkai PNG transparan milik Anda sendiri.</p>
+            
+            <div class="frame-selector-grid">
+              <div class="frame-option active" id="frameDefaultOpt">
+                <div class="frame-preview-thumb" id="frameDefaultThumb">
+                  <!-- JS will load SVG preview here -->
+                </div>
+                <div class="frame-details">
+                  <span class="frame-title">CAI Lombok 2026</span>
+                  <span class="frame-badge">Bawaan</span>
+                </div>
+              </div>
+              
+              <div class="frame-option upload-trigger-card" id="btnUploadFrame">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+                <span>Unggah PNG Custom</span>
+                <input type="file" id="fileFrameInput" accept="image/png" style="display: none;">
+              </div>
+            </div>
+            
+            <div class="selected-frame-info" id="customFrameInfo" style="display: none;">
+              <i class="fa-solid fa-image text-primary"></i>
+              <div class="info-meta">
+                <span class="name" id="customFrameName">bingkai-saya.png</span>
+                <span class="size" id="customFrameSize">0 KB</span>
+              </div>
+              <button class="btn-clear" id="btnClearCustomFrame"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+          </div>
+
+          <!-- TAB 2: MEDIA INPUT -->
+          <div class="tab-content" id="tab-media">
+            <h3 class="section-title">Masukkan Foto atau Video</h3>
+            <p class="section-desc">Pilih file foto/video dari galeri Anda, atau gunakan kamera untuk mengambil secara langsung.</p>
+
+            <div class="media-source-cards">
+              <!-- Upload from Gallery -->
+              <div class="source-card" id="uploadGalleryCard">
+                <div class="card-icon"><i class="fa-solid fa-images"></i></div>
+                <div class="card-text">
+                  <h4>Dari Galeri</h4>
+                  <p>Foto (JPG/PNG) & Video (MP4/WebM)</p>
+                </div>
+                <input type="file" id="fileMediaInput" accept="image/*,video/*" style="display: none;">
+              </div>
+
+              <!-- Camera Capture -->
+              <div class="source-card" id="cameraCard">
+                <div class="card-icon"><i class="fa-solid fa-camera"></i></div>
+                <div class="card-text">
+                  <h4>Kamera Langsung</h4>
+                  <p>Ambil foto selfie atau rekam video instan</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Active Camera Preview Panel (Initially Hidden) -->
+            <div class="camera-panel" id="cameraPanel" style="display: none;">
+              <div class="camera-stream-wrapper">
+                <video id="cameraVideo" autoplay playsinline muted></video>
+                <div class="camera-overlay-circle"></div>
+                <div class="camera-loader" id="cameraLoader">
+                  <div class="spinner"></div>
+                  <span>Mengaktifkan kamera...</span>
+                </div>
+              </div>
+              <div class="camera-controls">
+                <button id="btnCapturePhoto" class="btn btn-primary btn-sm">
+                  <i class="fa-solid fa-camera-retro"></i> Ambil Foto
+                </button>
+                <button id="btnRecordVideo" class="btn btn-danger btn-sm">
+                  <i class="fa-solid fa-circle"></i> Rekam Video (Maks 15s)
+                </button>
+                <button id="btnCloseCamera" class="btn btn-secondary btn-sm">
+                  <i class="fa-solid fa-ban"></i> Batal
+                </button>
+              </div>
+            </div>
+
+            <!-- Active Media Info -->
+            <div class="active-media-card" id="activeMediaCard" style="display: none;">
+              <div class="media-icon" id="activeMediaIcon"><i class="fa-solid fa-image"></i></div>
+              <div class="media-meta">
+                <span class="label">Media Aktif:</span>
+                <span class="name" id="activeMediaName">file-media.jpg</span>
+                <span class="type-badge" id="activeMediaType">IMAGE</span>
+              </div>
+              <button class="btn-clear" id="btnRemoveMedia" title="Hapus Media"><i class="fa-solid fa-trash-can"></i></button>
+            </div>
+          </div>
+
+          <!-- TAB 3: ADJUSTMENTS -->
+          <div class="tab-content" id="tab-adjust">
+            <h3 class="section-title">Atur Posisi & Ukuran</h3>
+            <p class="section-desc">Gunakan slider di bawah untuk menyesuaikan skala, rotasi, dan posisi agar pas di dalam bingkai.</p>
+
+            <div class="slider-group">
+              <div class="slider-label-row">
+                <span><i class="fa-solid fa-magnifying-glass-plus"></i> Skala (Zoom)</span>
+                <span id="valScale">100%</span>
+              </div>
+              <input type="range" id="sliderScale" min="0.1" max="3" step="0.01" value="1">
+            </div>
+
+            <div class="slider-group">
+              <div class="slider-label-row">
+                <span><i class="fa-solid fa-rotate"></i> Rotasi</span>
+                <span id="valRotate">0°</span>
+              </div>
+              <input type="range" id="sliderRotate" min="-180" max="180" step="1" value="0">
+            </div>
+
+            <div class="position-pad">
+              <span class="pad-title"><i class="fa-solid fa-arrows-up-down-left-right"></i> Geser Presisi</span>
+              <div class="pad-grid">
+                <div></div>
+                <button class="pad-btn" id="btnPadUp" title="Geser Atas"><i class="fa-solid fa-chevron-up"></i></button>
+                <div></div>
+                <button class="pad-btn" id="btnPadLeft" title="Geser Kiri"><i class="fa-solid fa-chevron-left"></i></button>
+                <button class="pad-btn pad-center" id="btnPadCenter" title="Tengahkan"><i class="fa-solid fa-circle-dot"></i></button>
+                <button class="pad-btn" id="btnPadRight" title="Geser Kanan"><i class="fa-solid fa-chevron-right"></i></button>
+                <div></div>
+                <button class="pad-btn" id="btnPadDown" title="Geser Bawah"><i class="fa-solid fa-chevron-down"></i></button>
+                <div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 4: EXPORT & SHARE -->
+          <div class="tab-content" id="tab-export">
+            <h3 class="section-title">Simpan dan Bagikan</h3>
+            <p class="section-desc">Ekspor hasil twibbon Anda ke galeri perangkat atau bagikan langsung ke media sosial.</p>
+
+            <!-- Export Status -->
+            <div class="export-status-panel" id="exportStatusPanel" style="display: none;">
+              <div class="progress-container">
+                <div class="progress-bar-fill" id="exportProgressBar"></div>
+              </div>
+              <span class="status-text" id="exportStatusText">Mengekspor video... 0%</span>
+            </div>
+
+            <div class="export-options">
+              <button id="btnExportDownload" class="btn btn-primary btn-block">
+                <i class="fa-solid fa-file-arrow-down"></i> Download Hasil
+              </button>
+              <button id="btnExportShare" class="btn btn-secondary btn-block">
+                <i class="fa-solid fa-share-nodes"></i> Bagikan Langsung
+              </button>
+            </div>
+
+            <div class="help-box">
+              <i class="fa-solid fa-circle-info"></i>
+              <div class="help-text">
+                <strong>Catatan Video:</strong> Ekspor video memakan waktu sekitar durasi video Anda karena diproses secara real-time di browser untuk kualitas terbaik.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Hidden Video Element for handling uploaded videos -->
+    <video id="sourceVideo" style="display:none;" loop crossorigin="anonymous" playsinline muted></video>
+
+    <!-- Footer -->
+    <footer class="app-footer-brand">
+      <p>&copy; 2026 Twibbonize CAI Lombok. Dibuat dengan cinta untuk Cinta Alam Indonesia.</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
