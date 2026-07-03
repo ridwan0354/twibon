@@ -76,6 +76,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnQuickExportDownload = document.getElementById('btnQuickExportDownload');
   const btnQuickExportShare = document.getElementById('btnQuickExportShare');
 
+  // Quick Camera Controls (Directly below canvas)
+  const quickCameraControls = document.getElementById('quickCameraControls');
+  const btnQuickCapturePhoto = document.getElementById('btnQuickCapturePhoto');
+  const btnQuickRecordVideo = document.getElementById('btnQuickRecordVideo');
+  const btnQuickCloseCamera = document.getElementById('btnQuickCloseCamera');
+
   // --- STATE ---
   let frameImage = new Image();
   let defaultFrameUrl = null;
@@ -349,6 +355,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnQuickExportShare) {
       btnQuickExportShare.addEventListener('click', shareMedia);
     }
+
+    // Quick Camera Controls (Directly below canvas)
+    if (btnQuickCapturePhoto) {
+      btnQuickCapturePhoto.addEventListener('click', captureCameraPhoto);
+    }
+    if (btnQuickRecordVideo) {
+      btnQuickRecordVideo.addEventListener('click', handleCameraVideoRecording);
+    }
+    if (btnQuickCloseCamera) {
+      btnQuickCloseCamera.addEventListener('click', closeCamera);
+    }
   }
 
   // --- TRANSFORMATION MANAGEMENT ---
@@ -535,6 +552,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         resetMediaTransformations();
         if (quickAdjustPanel) quickAdjustPanel.style.display = 'block';
+        if (quickCameraControls) quickCameraControls.style.display = 'block';
       };
     } catch (err) {
       console.error('Kamera gagal diakses:', err);
@@ -554,6 +572,7 @@ document.addEventListener('DOMContentLoaded', () => {
           flipHorizontal = true;
           resetMediaTransformations();
           if (quickAdjustPanel) quickAdjustPanel.style.display = 'block';
+          if (quickCameraControls) quickCameraControls.style.display = 'block';
         };
       } catch (innerErr) {
         alert('Gagal mengakses kamera. Mohon berikan izin kamera atau gunakan file galeri.');
@@ -563,6 +582,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function closeCamera() {
+    if (quickCameraControls) quickCameraControls.style.display = 'none';
     if (cameraStream) {
       cameraStream.getTracks().forEach(track => track.stop());
     }
@@ -625,6 +645,13 @@ document.addEventListener('DOMContentLoaded', () => {
       btnRecordVideo.className = 'btn btn-danger btn-sm';
       btnCapturePhoto.style.display = 'none';
       btnCloseCamera.style.display = 'none';
+      
+      if (btnQuickRecordVideo) {
+        btnQuickRecordVideo.innerHTML = '<i class="fa-solid fa-stop"></i> Berhenti';
+        btnQuickRecordVideo.className = 'btn btn-danger';
+      }
+      if (btnQuickCapturePhoto) btnQuickCapturePhoto.style.display = 'none';
+      if (btnQuickCloseCamera) btnQuickCloseCamera.style.display = 'none';
       
       startCanvasRecording();
     } else {
@@ -815,6 +842,13 @@ document.addEventListener('DOMContentLoaded', () => {
       btnRecordVideo.className = 'btn btn-danger btn-sm';
       btnCapturePhoto.style.display = 'inline-flex';
       btnCloseCamera.style.display = 'inline-flex';
+      
+      if (btnQuickRecordVideo) {
+        btnQuickRecordVideo.innerHTML = '<i class="fa-solid fa-circle"></i> Rekam Video';
+        btnQuickRecordVideo.className = 'btn btn-danger';
+      }
+      if (btnQuickCapturePhoto) btnQuickCapturePhoto.style.display = 'inline-flex';
+      if (btnQuickCloseCamera) btnQuickCloseCamera.style.display = 'inline-flex';
     }
   }
 
