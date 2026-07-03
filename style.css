@@ -934,6 +934,32 @@ input[type="range"]::-webkit-slider-thumb:hover {
   100% { opacity: 1; }
 }
 
+/* Quick Mobile Panels */
+.quick-adjust-panel {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin-top: 10px;
+}
+
+.quick-export-panel {
+  margin-top: 10px;
+}
+
+.quick-export-panel .export-options {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+}
+
+.quick-export-panel .export-options button {
+  flex: 1;
+  padding: 12px 10px;
+  font-size: 13px;
+  border-radius: 10px;
+}
+
 /* Responsive Adjustments */
 @media (max-width: 900px) {
   .app-workspace {

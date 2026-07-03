@@ -62,6 +62,29 @@
               <i class="fa-solid fa-trash-can"></i>
             </button>
           </div>
+
+          <!-- Quick adjustment slider under canvas (very user-friendly on mobile) -->
+          <div class="quick-adjust-panel" id="quickAdjustPanel" style="display: none; width: 100%;">
+            <div class="slider-group">
+              <div class="slider-label-row">
+                <span><i class="fa-solid fa-magnifying-glass-plus"></i> Cubit/Zoom Foto</span>
+                <span id="quickValScale">100%</span>
+              </div>
+              <input type="range" id="quickSliderScale" min="0.1" max="3" step="0.01" value="1">
+            </div>
+          </div>
+
+          <!-- Quick export buttons under canvas -->
+          <div class="quick-export-panel" id="quickExportPanel" style="display: none; width: 100%; margin-top: 5px;">
+            <div class="export-options">
+              <button id="btnQuickExportDownload" class="btn btn-primary btn-block">
+                <i class="fa-solid fa-file-arrow-down"></i> Unduh Hasil Twibbon
+              </button>
+              <button id="btnQuickExportShare" class="btn btn-secondary btn-block">
+                <i class="fa-solid fa-share-nodes"></i> Bagikan
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -69,10 +92,10 @@
       <section class="controls-section">
         <!-- Tabs Menu -->
         <nav class="controls-tabs">
-          <button class="tab-btn active" data-tab="tab-frame">
+          <button class="tab-btn" data-tab="tab-frame">
             <i class="fa-solid fa-border-all"></i> Frame
           </button>
-          <button class="tab-btn" data-tab="tab-media">
+          <button class="tab-btn active" data-tab="tab-media">
             <i class="fa-solid fa-photo-film"></i> Media
           </button>
           <button class="tab-btn" data-tab="tab-adjust">
@@ -86,7 +109,7 @@
         <!-- Tab Content Area -->
         <div class="tab-content-wrapper">
           <!-- TAB 1: FRAME -->
-          <div class="tab-content active" id="tab-frame">
+          <div class="tab-content" id="tab-frame">
             <h3 class="section-title">Pilih Bingkai (Twibbon Frame)</h3>
             <p class="section-desc">Pilih bingkai resmi CAI Lombok atau unggah desain bingkai PNG transparan milik Anda sendiri.</p>
             
@@ -119,7 +142,7 @@
           </div>
 
           <!-- TAB 2: MEDIA INPUT -->
-          <div class="tab-content" id="tab-media">
+          <div class="tab-content active" id="tab-media">
             <h3 class="section-title">Masukkan Foto atau Video</h3>
             <p class="section-desc">Pilih file foto/video dari galeri Anda, atau gunakan kamera untuk mengambil secara langsung.</p>
 

@@ -68,6 +68,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnExportDownload = document.getElementById('btnExportDownload');
   const btnExportShare = document.getElementById('btnExportShare');
 
+  // Quick Mobile Controls (Directly below canvas)
+  const quickAdjustPanel = document.getElementById('quickAdjustPanel');
+  const quickSliderScale = document.getElementById('quickSliderScale');
+  const quickValScale = document.getElementById('quickValScale');
+  const quickExportPanel = document.getElementById('quickExportPanel');
+  const btnQuickExportDownload = document.getElementById('btnQuickExportDownload');
+  const btnQuickExportShare = document.getElementById('btnQuickExportShare');
+
   // --- STATE ---
   let frameImage = new Image();
   let defaultFrameUrl = null;
@@ -263,6 +271,12 @@ document.addEventListener('DOMContentLoaded', () => {
     sliderScale.addEventListener('input', (e) => {
       scale = parseFloat(e.target.value);
       valScale.textContent = Math.round(scale * 100) + '%';
+      
+      // Sync quick slider
+      if (quickSliderScale) {
+        quickSliderScale.value = scale;
+        quickValScale.textContent = Math.round(scale * 100) + '%';
+      }
       draw();
     });
     sliderRotate.addEventListener('input', (e) => {
@@ -314,6 +328,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // Export & Share
     btnExportDownload.addEventListener('click', exportMedia);
     btnExportShare.addEventListener('click', shareMedia);
+
+    // Quick Mobile Controls
+    if (quickSliderScale) {
+      quickSliderScale.addEventListener('input', (e) => {
+        scale = parseFloat(e.target.value);
+        quickValScale.textContent = Math.round(scale * 100) + '%';
+        
+        // Sync main slider
+        sliderScale.value = scale;
+        valScale.textContent = Math.round(scale * 100) + '%';
+        
+        draw();
+      });
+    }
+
+    if (btnQuickExportDownload) {
+      btnQuickExportDownload.addEventListener('click', exportMedia);
+    }
+    if (btnQuickExportShare) {
+      btnQuickExportShare.addEventListener('click', shareMedia);
+    }
   }
 
   // --- TRANSFORMATION MANAGEMENT ---
@@ -326,10 +361,25 @@ document.addEventListener('DOMContentLoaded', () => {
     
     sliderScale.value = 1.0;
     valScale.textContent = '100%';
+    if (quickSliderScale) {
+      quickSliderScale.value = 1.0;
+      quickValScale.textContent = '100%';
+    }
     sliderRotate.value = 0;
     valRotate.textContent = '0°';
     
     draw();
+  }
+
+  // --- QUICK MOBILE PANELS VISIBILITY ---
+  function showQuickPanels() {
+    if (quickAdjustPanel) quickAdjustPanel.style.display = 'block';
+    if (quickExportPanel) quickExportPanel.style.display = 'block';
+  }
+
+  function hideQuickPanels() {
+    if (quickAdjustPanel) quickAdjustPanel.style.display = 'none';
+    if (quickExportPanel) quickExportPanel.style.display = 'none';
   }
 
   // --- CUSTOM FRAME HANDLERS ---
@@ -397,6 +447,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         showActiveMediaBadge(file.name, 'FOTO');
         resetMediaTransformations();
+        showQuickPanels();
         
         // Direct to adjustment tab
         document.querySelector('.tab-btn[data-tab="tab-adjust"]').click();
@@ -420,6 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         showActiveMediaBadge(file.name, 'VIDEO');
         resetMediaTransformations();
+        showQuickPanels();
         
         sourceVideo.play().catch(err => console.log('Autoplay blocked:', err));
         
@@ -449,6 +501,7 @@ document.addEventListener('DOMContentLoaded', () => {
     activeMediaCard.style.display = 'none';
     fileMediaInput.value = '';
     resetMediaTransformations();
+    hideQuickPanels();
   }
 
   // --- CAMERA HANDLING ---
@@ -481,6 +534,7 @@ document.addEventListener('DOMContentLoaded', () => {
         flipHorizontal = true; // Natural mirror for webcam
         
         resetMediaTransformations();
+        if (quickAdjustPanel) quickAdjustPanel.style.display = 'block';
       };
     } catch (err) {
       console.error('Kamera gagal diakses:', err);
@@ -499,6 +553,7 @@ document.addEventListener('DOMContentLoaded', () => {
           mediaHeight = 480;
           flipHorizontal = true;
           resetMediaTransformations();
+          if (quickAdjustPanel) quickAdjustPanel.style.display = 'block';
         };
       } catch (innerErr) {
         alert('Gagal mengakses kamera. Mohon berikan izin kamera atau gunakan file galeri.');
@@ -549,6 +604,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       showActiveMediaBadge('foto-kamera-' + Date.now() + '.jpg', 'FOTO');
       resetMediaTransformations();
+      showQuickPanels();
       
       // Close the stream
       closeCamera();
@@ -783,6 +839,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Set UI tab to export tab automatically
     document.querySelector('.tab-btn[data-tab="tab-export"]').click();
+    showQuickPanels();
   }
 
   // --- EXPORT TRIGGERS (DOWNLOAD & SHARE) ---
