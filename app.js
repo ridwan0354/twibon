@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const cameraLoader = document.getElementById('cameraLoader');
   const btnCapturePhoto = document.getElementById('btnCapturePhoto');
   const btnRecordVideo = document.getElementById('btnRecordVideo');
+  const btnSwitchCamera = document.getElementById('btnSwitchCamera');
   const btnCloseCamera = document.getElementById('btnCloseCamera');
   const activeMediaCard = document.getElementById('activeMediaCard');
   const activeMediaIcon = document.getElementById('activeMediaIcon');
@@ -81,6 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const quickCameraControls = document.getElementById('quickCameraControls');
   const btnQuickCapturePhoto = document.getElementById('btnQuickCapturePhoto');
   const btnQuickRecordVideo = document.getElementById('btnQuickRecordVideo');
+  const btnQuickSwitchCamera = document.getElementById('btnQuickSwitchCamera');
   const btnQuickCloseCamera = document.getElementById('btnQuickCloseCamera');
 
   // --- STATE ---
@@ -89,6 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let customFrameImage = null;
   
   let mediaType = null; // 'image' | 'video' | 'camera'
+  let cameraFacingMode = 'user'; // 'user' (front camera) or 'environment' (back camera)
   let mediaElement = null; // HTMLImageElement or HTMLVideoElement
   let mediaWidth = 0;
   let mediaHeight = 0;
@@ -273,6 +276,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Camera actions
     btnCapturePhoto.addEventListener('click', captureCameraPhoto);
     btnRecordVideo.addEventListener('click', handleCameraVideoRecording);
+    if (btnSwitchCamera) {
+      btnSwitchCamera.addEventListener('click', toggleCameraFacing);
+    }
 
     // Transformation controls
     sliderScale.addEventListener('input', (e) => {
@@ -363,6 +369,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (btnQuickRecordVideo) {
       btnQuickRecordVideo.addEventListener('click', handleCameraVideoRecording);
+    }
+    if (btnQuickSwitchCamera) {
+      btnQuickSwitchCamera.addEventListener('click', toggleCameraFacing);
     }
     if (btnQuickCloseCamera) {
       btnQuickCloseCamera.addEventListener('click', closeCamera);
@@ -548,7 +557,7 @@ document.addEventListener('DOMContentLoaded', () => {
         video: {
           width: { ideal: 1080 },
           height: { ideal: 1080 },
-          facingMode: "user"
+          facingMode: cameraFacingMode
         },
         audio: true // Request audio for live video twibbon recording!
       });
@@ -563,7 +572,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mediaElement = cameraVideo;
         mediaWidth = 1080; // Ideal dimensions
         mediaHeight = 1080;
-        flipHorizontal = true; // Natural mirror for webcam
+        flipHorizontal = (cameraFacingMode === 'user'); // Mirror only for front camera
         
         resetMediaTransformations();
         if (quickAdjustPanel) quickAdjustPanel.style.display = 'block';
@@ -574,7 +583,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Fallback request just video if audio access is denied or unavailable
       try {
         cameraStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user" }
+          video: { facingMode: cameraFacingMode }
         });
         cameraVideo.srcObject = cameraStream;
         cameraVideo.onloadedmetadata = () => {
@@ -584,7 +593,7 @@ document.addEventListener('DOMContentLoaded', () => {
           mediaElement = cameraVideo;
           mediaWidth = 640; 
           mediaHeight = 480;
-          flipHorizontal = true;
+          flipHorizontal = (cameraFacingMode === 'user'); // Mirror only for front camera
           resetMediaTransformations();
           if (quickAdjustPanel) quickAdjustPanel.style.display = 'block';
           if (quickCameraControls) quickCameraControls.style.display = 'block';
@@ -597,6 +606,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function closeCamera() {
+    cameraFacingMode = 'user'; // Reset default to front camera on exit
     if (quickCameraControls) quickCameraControls.style.display = 'none';
     if (cameraStream) {
       cameraStream.getTracks().forEach(track => track.stop());
@@ -609,6 +619,26 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (mediaType === 'camera') {
       removeActiveMedia();
+    }
+  }
+
+  async function toggleCameraFacing() {
+    cameraFacingMode = (cameraFacingMode === 'user') ? 'environment' : 'user';
+    
+    if (cameraStream) {
+      const prevUploadState = uploadGalleryCard.style.pointerEvents;
+      const prevCameraState = cameraCard.style.pointerEvents;
+      
+      // Stop current camera stream
+      cameraStream.getTracks().forEach(track => track.stop());
+      cameraStream = null;
+      cameraVideo.srcObject = null;
+      
+      // Open camera with new facingMode
+      await openCamera();
+      
+      uploadGalleryCard.style.pointerEvents = prevUploadState;
+      cameraCard.style.pointerEvents = prevCameraState;
     }
   }
 
@@ -659,6 +689,7 @@ document.addEventListener('DOMContentLoaded', () => {
       btnRecordVideo.innerHTML = '<i class="fa-solid fa-stop"></i> Berhenti Rekam';
       btnRecordVideo.className = 'btn btn-danger btn-sm';
       btnCapturePhoto.style.display = 'none';
+      if (btnSwitchCamera) btnSwitchCamera.style.display = 'none';
       btnCloseCamera.style.display = 'none';
       
       if (btnQuickRecordVideo) {
@@ -666,6 +697,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnQuickRecordVideo.className = 'btn btn-danger';
       }
       if (btnQuickCapturePhoto) btnQuickCapturePhoto.style.display = 'none';
+      if (btnQuickSwitchCamera) btnQuickSwitchCamera.style.display = 'none';
       if (btnQuickCloseCamera) btnQuickCloseCamera.style.display = 'none';
       
       startCanvasRecording();
@@ -857,6 +889,7 @@ document.addEventListener('DOMContentLoaded', () => {
       btnRecordVideo.innerHTML = '<i class="fa-solid fa-circle"></i> Rekam Video (Maks 30s)';
       btnRecordVideo.className = 'btn btn-danger btn-sm';
       btnCapturePhoto.style.display = 'inline-flex';
+      if (btnSwitchCamera) btnSwitchCamera.style.display = 'inline-flex';
       btnCloseCamera.style.display = 'inline-flex';
       
       if (btnQuickRecordVideo) {
@@ -864,6 +897,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnQuickRecordVideo.className = 'btn btn-danger';
       }
       if (btnQuickCapturePhoto) btnQuickCapturePhoto.style.display = 'inline-flex';
+      if (btnQuickSwitchCamera) btnQuickSwitchCamera.style.display = 'inline-flex';
       if (btnQuickCloseCamera) btnQuickCloseCamera.style.display = 'inline-flex';
     }
   }
