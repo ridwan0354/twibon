@@ -79,6 +79,9 @@ server {
     root $WEB_ROOT;
     index index.html index.php;
 
+    # Izinkan upload file besar (untuk bingkai PNG twibbon)
+    client_max_body_size 20M;
+
     # Gzip compression untuk performa loading cepat
     gzip on;
     gzip_vary on;
