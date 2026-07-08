@@ -102,8 +102,16 @@ if ($method === 'POST') {
         }
         
         if (!isset($_FILES['frame_image']) || $_FILES['frame_image']['error'] !== UPLOAD_ERR_OK) {
+            $upload_error_code = isset($_FILES['frame_image']) ? $_FILES['frame_image']['error'] : -1;
+            $upload_error_messages = [
+                0 => 'Upload sukses', 1 => 'File melebihi upload_max_filesize di php.ini',
+                2 => 'File melebihi MAX_FILE_SIZE di form HTML', 3 => 'File hanya terupload sebagian',
+                4 => 'Tidak ada file yang dipilih', 6 => 'Folder temp tidak ditemukan',
+                7 => 'Gagal menulis file ke disk', 8 => 'Upload dihentikan oleh ekstensi PHP'
+            ];
+            $msg = isset($upload_error_messages[$upload_error_code]) ? $upload_error_messages[$upload_error_code] : 'Error tidak dikenal';
             http_response_code(400);
-            echo json_encode(["error" => "Frame image file is required or upload failed."]);
+            echo json_encode(["error" => "Upload gagal (kode $upload_error_code): $msg"]);
             exit();
         }
         
