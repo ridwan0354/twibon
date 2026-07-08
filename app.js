@@ -331,18 +331,36 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Default Permanent Frames list
+  // If you copy new PNG frame files into the project folder, you can register them here
+  // so they are visible to ALL users, on all devices, and in Incognito mode automatically!
+  const DEFAULT_FRAMES = [
+    {
+      id: 'default_cai_2026',
+      name: 'CAI Lombok 2026',
+      src: 'twibonze CAI26 (1).png',
+      order: 0,
+      isDefault: true
+    }
+    // To add more default permanent frames, register them here, example:
+    // {
+    //   id: 'default_fas_2025',
+    //   name: 'FAS 2025 & Bazar Remaja',
+    //   src: 'nama-file-bingkai-anda.png',
+    //   order: 1,
+    //   isDefault: true
+    // }
+  ];
+
   async function initDBAndFrames() {
     try {
-      const frames = await getAllFrames();
-      if (frames.length === 0) {
-        // Pre-populate with default CAI Lombok frame
-        await saveFrame({
-          id: 'default_cai_2026',
-          name: 'CAI Lombok 2026',
-          src: 'twibonze CAI26 (1).png',
-          order: 0,
-          isDefault: true
-        });
+      const dbFrames = await getAllFrames();
+      // Add default frames to the database if they don't already exist
+      for (const defFrame of DEFAULT_FRAMES) {
+        const exists = dbFrames.some(f => f.id === defFrame.id);
+        if (!exists) {
+          await saveFrame(defFrame);
+        }
       }
     } catch (err) {
       console.error('Failed to initialize frames database:', err);
