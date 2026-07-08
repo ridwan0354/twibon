@@ -139,24 +139,7 @@ else
     exit 1
 fi
 
-# 7. Setup SSL menggunakan Certbot Let's Encrypt (SANGAT PENTING untuk Akses Kamera & Share)
-echo -e "${BLUE}=== Setup SSL (HTTPS) dengan Certbot ===${NC}"
-if ! command -v certbot &> /dev/null; then
-    echo -e "${BLUE}Menginstall Certbot...${NC}"
-    apt update
-    apt install -y certbot python3-certbot-nginx
-fi
-
-echo -e "${BLUE}Memulai konfigurasi SSL otomatis untuk $DOMAIN...${NC}"
-echo -e "${BLUE}Pastikan domain $DOMAIN sudah diarahkan (DNS A Record) ke IP VPS ini!${NC}"
-
-# Jalankan Certbot secara interaktif
-certbot --nginx -d "$DOMAIN"
-
-# Reload nginx sekali lagi setelah sertifikat terpasang
-systemctl reload nginx
-
 echo -e "${GREEN}====================================================${NC}"
-echo -e "${GREEN}🎉 DEPLOYMENT SELESAI!${NC}"
-echo -e "${GREEN}Website Anda aktif di: https://$DOMAIN${NC}"
+echo -e "${GREEN}🎉 DEPLOYMENT SELESAI (Menggunakan Cloudflare Flexible SSL)!${NC}"
+echo -e "${GREEN}Website Anda aktif di: http://$DOMAIN (HTTPS dikelola oleh Cloudflare)${NC}"
 echo -e "${GREEN}====================================================${NC}"
