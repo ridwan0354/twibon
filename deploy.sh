@@ -53,6 +53,23 @@ chmod -R 755 "$WEB_ROOT"
 
 # 5. Buat Konfigurasi Nginx Server Block
 echo -e "${BLUE}Membuat konfigurasi Nginx untuk $DOMAIN...${NC}"
+
+# Detect active PHP-FPM socket
+PHP_SOCK=""
+for sock in /var/run/php/php*-fpm.sock; do
+    if [ -S "$sock" ]; then
+        PHP_SOCK="$sock"
+        break
+    fi
+done
+
+if [ -z "$PHP_SOCK" ]; then
+    echo -e "${RED}Warning: PHP-FPM socket tidak ditemukan. Menggunakan default php8.2-fpm.sock.${NC}"
+    PHP_SOCK="/var/run/php/php8.2-fpm.sock"
+fi
+
+echo -e "${GREEN}Menggunakan PHP-FPM socket: $PHP_SOCK${NC}"
+
 cat << EOF > "$NGINX_CONF"
 server {
     listen 80;
@@ -60,7 +77,7 @@ server {
     server_name $DOMAIN;
 
     root $WEB_ROOT;
-    index index.html;
+    index index.html index.php;
 
     # Gzip compression untuk performa loading cepat
     gzip on;
@@ -72,6 +89,14 @@ server {
 
     location / {
         try_files \$uri \$uri/ =404;
+    }
+
+    # Process PHP scripts
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:$PHP_SOCK;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        include fastcgi_params;
     }
 
     # Cache Control untuk static assets agar lebih kencang

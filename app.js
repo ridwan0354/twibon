@@ -262,39 +262,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // --- DATABASE HELPER FUNCTIONS (IndexedDB) ---
-  function openDB() {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(DB_NAME, DB_VERSION);
-      request.onupgradeneeded = (e) => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-          db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-        }
-      };
-      request.onsuccess = (e) => resolve(e.target.result);
-      request.onerror = (e) => reject(e.target.error);
-    });
-  }
-
+  // --- DATABASE HELPER FUNCTIONS (API Fetch) ---
   async function getAllFrames() {
     try {
-      const db = await openDB();
-      return new Promise((resolve) => {
-        const transaction = db.transaction(STORE_NAME, 'readonly');
-        const store = transaction.objectStore(STORE_NAME);
-        const request = store.getAll();
-        request.onsuccess = () => {
-          let list = request.result;
-          list.sort((a, b) => a.order - b.order);
-          resolve(list);
-        };
-        request.onerror = () => {
-          resolve(getFallbackFramesList());
-        };
-      });
+      const response = await fetch('api.php');
+      if (response.ok) {
+        return await response.json();
+      }
+      return getFallbackFramesList();
     } catch (err) {
-      console.warn('IndexedDB not supported or blocked, using fallback list:', err);
+      console.warn('API connection failed, using fallback list:', err);
       return getFallbackFramesList();
     }
   }
@@ -309,62 +286,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }];
   }
 
-  async function saveFrame(frame) {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, 'readwrite');
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.put(frame);
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  async function deleteFrame(id) {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, 'readwrite');
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.delete(id);
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  // Default Permanent Frames list
-  // If you copy new PNG frame files into the project folder, you can register them here
-  // so they are visible to ALL users, on all devices, and in Incognito mode automatically!
-  const DEFAULT_FRAMES = [
-    {
-      id: 'default_cai_2026',
-      name: 'CAI Lombok 2026',
-      src: 'twibonze CAI26 (1).png',
-      order: 0,
-      isDefault: true
-    }
-    // To add more default permanent frames, register them here, example:
-    // {
-    //   id: 'default_fas_2025',
-    //   name: 'FAS 2025 & Bazar Remaja',
-    //   src: 'nama-file-bingkai-anda.png',
-    //   order: 1,
-    //   isDefault: true
-    // }
-  ];
-
   async function initDBAndFrames() {
-    try {
-      const dbFrames = await getAllFrames();
-      // Add default frames to the database if they don't already exist
-      for (const defFrame of DEFAULT_FRAMES) {
-        const exists = dbFrames.some(f => f.id === defFrame.id);
-        if (!exists) {
-          await saveFrame(defFrame);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to initialize frames database:', err);
-    }
+    // Handled on backend side now
   }
 
   // --- MODAL SELECTION SYSTEM (First load) ---
@@ -521,33 +444,60 @@ document.addEventListener('DOMContentLoaded', () => {
     const targetIndex = currentIndex + direction;
     if (targetIndex < 0 || targetIndex >= frames.length) return;
     
-    const currentFrame = frames[currentIndex];
-    const targetFrame = frames[targetIndex];
+    const temp = frames[currentIndex];
+    frames[currentIndex] = frames[targetIndex];
+    frames[targetIndex] = temp;
     
-    const tempOrder = currentFrame.order;
-    currentFrame.order = targetFrame.order;
-    targetFrame.order = tempOrder;
+    const frameIds = frames.map(f => f.id);
     
-    await saveFrame(currentFrame);
-    await saveFrame(targetFrame);
-    
-    await renderAdminFrameList();
-    await renderEditorFrameSelector();
+    try {
+      const response = await fetch('api.php?action=reorder', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          frame_ids: frameIds,
+          password: '354313'
+        })
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        await renderAdminFrameList();
+        await renderEditorFrameSelector();
+      } else {
+        alert('Gagal mengubah urutan: ' + (data.error || 'Terjadi kesalahan.'));
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Gagal menghubungkan ke server.');
+    }
   }
 
   async function handleDeleteFrame(frameId) {
     if (confirm('Apakah Anda yakin ingin menghapus bingkai ini?')) {
-      await deleteFrame(frameId);
-      
-      // Re-order
-      const frames = await getAllFrames();
-      for (let i = 0; i < frames.length; i++) {
-        frames[i].order = i;
-        await saveFrame(frames[i]);
+      try {
+        const response = await fetch('api.php?action=delete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            id: frameId,
+            password: '354313'
+          })
+        });
+        const data = await response.json();
+        if (response.ok && data.success) {
+          await renderAdminFrameList();
+          await renderEditorFrameSelector();
+        } else {
+          alert('Gagal menghapus bingkai: ' + (data.error || 'Terjadi kesalahan.'));
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Gagal menghubungkan ke server.');
       }
-      
-      await renderAdminFrameList();
-      await renderEditorFrameSelector();
     }
   }
 
@@ -557,34 +507,41 @@ document.addEventListener('DOMContentLoaded', () => {
       alert('Masukkan nama bingkai terlebih dahulu!');
       return;
     }
-    if (!newFrameFileBase64) {
+    const file = newFrameFileInput.files[0];
+    if (!file) {
       alert('Pilih file gambar PNG transparan bingkai terlebih dahulu!');
       return;
     }
     
-    const frames = await getAllFrames();
-    const nextOrder = frames.length > 0 ? Math.max(...frames.map(f => f.order)) + 1 : 0;
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('frame_image', file);
+    formData.append('password', '354313');
     
-    const newFrame = {
-      id: 'custom_' + Date.now(),
-      name: name,
-      src: newFrameFileBase64,
-      order: nextOrder,
-      isDefault: false
-    };
-    
-    await saveFrame(newFrame);
-    
-    // Clear inputs
-    newFrameName.value = '';
-    newFrameFileInput.value = '';
-    newFrameFileName.textContent = 'Belum ada file terpilih';
-    newFrameFileBase64 = null;
-    
-    alert('Bingkai berhasil disimpan!');
-    
-    await renderAdminFrameList();
-    await renderEditorFrameSelector();
+    try {
+      const response = await fetch('api.php?action=save', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        alert('Bingkai berhasil disimpan!');
+        
+        // Clear inputs
+        newFrameName.value = '';
+        newFrameFileInput.value = '';
+        newFrameFileName.textContent = 'Belum ada file terpilih';
+        newFrameFileBase64 = null;
+        
+        await renderAdminFrameList();
+        await renderEditorFrameSelector();
+      } else {
+        alert('Gagal menyimpan bingkai: ' + (data.error || 'Terjadi kesalahan.'));
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Gagal menghubungkan ke server.');
+    }
   }
 
   // --- INITIALIZATION ---
