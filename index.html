@@ -13,6 +13,21 @@
   <link rel="stylesheet" href="style.css?v=1.0.6">
 </head>
 <body>
+  <!-- Modal start frame selector -->
+  <div class="modal-overlay" id="frameStartModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Pilih Bingkai Twibbon</h2>
+        <p>Silakan pilih salah satu bingkai resmi di bawah ini untuk memulai membuat twibbon Anda</p>
+      </div>
+      <div class="modal-body">
+        <div class="modal-frame-grid" id="modalFrameGrid">
+          <!-- Dynamically populated from JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="app-container">
     <!-- Header -->
     <header class="app-header">
@@ -124,6 +139,9 @@
           </button>
           <button class="tab-btn" data-tab="tab-export">
             <i class="fa-solid fa-download"></i> Simpan
+          </button>
+          <button class="tab-btn" data-tab="tab-admin">
+            <i class="fa-solid fa-lock"></i> Admin
           </button>
         </nav>
 
@@ -289,6 +307,54 @@
               <i class="fa-solid fa-circle-info"></i>
               <div class="help-text">
                 <strong>Catatan Video:</strong> Ekspor video memakan waktu sekitar durasi video Anda karena diproses secara real-time di browser untuk kualitas terbaik.
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 5: ADMIN PANEL -->
+          <div class="tab-content" id="tab-admin">
+            <!-- Password Prompt Panel -->
+            <div id="adminAuthPanel" class="admin-auth-card">
+              <h3 class="section-title"><i class="fa-solid fa-lock"></i> Login Admin</h3>
+              <p class="section-desc">Masukkan password untuk mengelola daftar bingkai twibbon resmi.</p>
+              
+              <div class="form-group">
+                <input type="password" id="adminPasswordInput" placeholder="Password Admin..." class="form-control">
+                <button id="btnAdminLogin" class="btn btn-primary btn-block" style="margin-top: 10px;">Masuk</button>
+              </div>
+              <span id="adminLoginError" class="text-danger" style="display: none; font-size: 12px; margin-top: 5px;">Password salah!</span>
+            </div>
+            
+            <!-- Dashboard Admin Panel (Initially Hidden) -->
+            <div id="adminDashboardPanel" style="display: none;" class="admin-dashboard-card">
+              <div class="admin-header-row">
+                <h3 class="section-title"><i class="fa-solid fa-gears"></i> Kelola Bingkai</h3>
+                <button id="btnAdminLogout" class="btn btn-secondary btn-sm"><i class="fa-solid fa-right-from-bracket"></i> Keluar</button>
+              </div>
+              
+              <!-- Frame List management -->
+              <div class="admin-frame-list-wrapper">
+                <p class="section-desc">Atur posisi/urutan, edit nama, atau hapus bingkai.</p>
+                <div class="admin-frame-items-container" id="adminFrameItemsList">
+                  <!-- JS will render list items here -->
+                </div>
+              </div>
+              
+              <!-- Form to add new frame -->
+              <div class="admin-add-frame-form" style="border-top: 1px solid var(--panel-border); padding-top: 16px; margin-top: 10px;">
+                <h4 style="font-size: 14px; margin-bottom: 12px;">Tambah Bingkai Baru</h4>
+                <div class="form-group" style="margin-bottom: 12px;">
+                  <label for="newFrameName">Nama Bingkai:</label>
+                  <input type="text" id="newFrameName" placeholder="Contoh: CAI Lombok 2026" class="form-control">
+                </div>
+                <div class="form-group" style="margin-bottom: 12px;">
+                  <label for="newFrameFileInput" class="btn btn-secondary btn-block">
+                    <i class="fa-solid fa-image"></i> Pilih File PNG Bingkai
+                  </label>
+                  <input type="file" id="newFrameFileInput" accept="image/png" style="display: none;">
+                  <span id="newFrameFileName" class="file-name-text">Belum ada file terpilih</span>
+                </div>
+                <button id="btnAdminSaveFrame" class="btn btn-primary btn-block"><i class="fa-solid fa-floppy-disk"></i> Simpan Bingkai</button>
               </div>
             </div>
           </div>

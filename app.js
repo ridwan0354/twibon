@@ -85,10 +85,32 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnQuickSwitchCamera = document.getElementById('btnQuickSwitchCamera');
   const btnQuickCloseCamera = document.getElementById('btnQuickCloseCamera');
 
+  // Admin & Modal Elements
+  const frameStartModal = document.getElementById('frameStartModal');
+  const modalFrameGrid = document.getElementById('modalFrameGrid');
+  const adminAuthPanel = document.getElementById('adminAuthPanel');
+  const adminDashboardPanel = document.getElementById('adminDashboardPanel');
+  const adminPasswordInput = document.getElementById('adminPasswordInput');
+  const btnAdminLogin = document.getElementById('btnAdminLogin');
+  const adminLoginError = document.getElementById('adminLoginError');
+  const btnAdminLogout = document.getElementById('btnAdminLogout');
+  const adminFrameItemsList = document.getElementById('adminFrameItemsList');
+  const newFrameName = document.getElementById('newFrameName');
+  const newFrameFileInput = document.getElementById('newFrameFileInput');
+  const newFrameFileName = document.getElementById('newFrameFileName');
+  const btnAdminSaveFrame = document.getElementById('btnAdminSaveFrame');
+
   // --- STATE ---
   let frameImage = new Image();
   let defaultFrameUrl = null;
   let customFrameImage = null;
+  let isAdminAuthenticated = false;
+  let newFrameFileBase64 = null;
+
+  // IndexedDB Config
+  const DB_NAME = 'TwibbonAppDB';
+  const DB_VERSION = 1;
+  const STORE_NAME = 'frames';
   
   let mediaType = null; // 'image' | 'video' | 'camera'
   let cameraFacingMode = 'user'; // 'user' (front camera) or 'environment' (back camera)
@@ -240,8 +262,298 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // --- DATABASE HELPER FUNCTIONS (IndexedDB) ---
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      request.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        }
+      };
+      request.onsuccess = (e) => resolve(e.target.result);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  async function getAllFrames() {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readonly');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.getAll();
+      request.onsuccess = () => {
+        let list = request.result;
+        list.sort((a, b) => a.order - b.order);
+        resolve(list);
+      };
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async function saveFrame(frame) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.put(frame);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async function deleteFrame(id) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.delete(id);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async function initDBAndFrames() {
+    try {
+      const frames = await getAllFrames();
+      if (frames.length === 0) {
+        // Pre-populate with default CAI Lombok frame
+        await saveFrame({
+          id: 'default_cai_2026',
+          name: 'CAI Lombok 2026',
+          src: 'twibonze CAI26 (1).png',
+          order: 0,
+          isDefault: true
+        });
+      }
+    } catch (err) {
+      console.error('Failed to initialize frames database:', err);
+    }
+  }
+
+  // --- MODAL SELECTION SYSTEM (First load) ---
+  async function showStartModal() {
+    const startModal = document.getElementById('frameStartModal');
+    const modalGrid = document.getElementById('modalFrameGrid');
+    
+    modalGrid.innerHTML = '';
+    const frames = await getAllFrames();
+    
+    frames.forEach(frame => {
+      const item = document.createElement('div');
+      item.className = 'modal-frame-item';
+      item.innerHTML = `
+        <div class="modal-frame-thumb">
+          <img src="${frame.src}" alt="${frame.name}">
+        </div>
+        <h4>${frame.name}</h4>
+      `;
+      item.addEventListener('click', () => {
+        selectFrame(frame);
+        startModal.classList.add('hidden');
+      });
+      modalGrid.appendChild(item);
+    });
+    
+    startModal.classList.remove('hidden');
+  }
+
+  function selectFrame(frame) {
+    frameImage.src = frame.src;
+    
+    customFrameInfo.style.display = 'none';
+    fileFrameInput.value = '';
+    
+    updateEditorSelectorActive(frame.id);
+  }
+
+  function updateEditorSelectorActive(activeId) {
+    document.querySelectorAll('.frame-selector-grid .frame-option').forEach(opt => {
+      opt.classList.remove('active');
+    });
+    const activeOpt = document.getElementById(`frame-opt-${activeId}`);
+    if (activeOpt) {
+      activeOpt.classList.add('active');
+    }
+  }
+
+  async function renderEditorFrameSelector() {
+    const grid = document.querySelector('.frame-selector-grid');
+    if (!grid) return;
+    
+    const uploadCard = btnUploadFrame;
+    grid.innerHTML = '';
+    
+    const frames = await getAllFrames();
+    
+    frames.forEach(frame => {
+      const option = document.createElement('div');
+      option.className = 'frame-option';
+      option.id = `frame-opt-${frame.id}`;
+      if (frameImage.src === frame.src || (frame.isDefault && frameImage.src.endsWith(frame.src))) {
+        option.classList.add('active');
+      }
+      
+      option.innerHTML = `
+        <div class="frame-preview-thumb">
+          <img src="${frame.src}" alt="${frame.name}">
+        </div>
+        <div class="frame-details">
+          <span class="frame-title">${frame.name}</span>
+          ${frame.isDefault ? '<span class="frame-badge">Bawaan</span>' : ''}
+        </div>
+      `;
+      
+      option.addEventListener('click', () => {
+        selectFrame(frame);
+      });
+      
+      grid.appendChild(option);
+    });
+    
+    grid.appendChild(uploadCard);
+  }
+
+  // --- ADMIN PANEL FUNCTIONS ---
+  function handleAdminLogin() {
+    const enteredPassword = adminPasswordInput.value;
+    if (enteredPassword === '354313') {
+      isAdminAuthenticated = true;
+      adminLoginError.style.display = 'none';
+      adminAuthPanel.style.display = 'none';
+      adminDashboardPanel.style.display = 'block';
+      renderAdminFrameList();
+    } else {
+      adminLoginError.style.display = 'block';
+    }
+  }
+
+  function handleAdminLogout() {
+    isAdminAuthenticated = false;
+    adminPasswordInput.value = '';
+    adminAuthPanel.style.display = 'block';
+    adminDashboardPanel.style.display = 'none';
+  }
+
+  async function renderAdminFrameList() {
+    adminFrameItemsList.innerHTML = '';
+    const frames = await getAllFrames();
+    
+    frames.forEach((frame, idx) => {
+      const item = document.createElement('div');
+      item.className = 'admin-frame-item';
+      
+      item.innerHTML = `
+        <img src="${frame.src}" alt="${frame.name}">
+        <span class="frame-name">${frame.name}</span>
+        <div class="actions">
+          <button class="btn-action btn-move-up" title="Pindahkan Ke Atas" ${idx === 0 ? 'disabled style="opacity: 0.3;"' : ''}>
+            <i class="fa-solid fa-arrow-up"></i>
+          </button>
+          <button class="btn-action btn-move-down" title="Pindahkan Ke Bawah" ${idx === frames.length - 1 ? 'disabled style="opacity: 0.3;"' : ''}>
+            <i class="fa-solid fa-arrow-down"></i>
+          </button>
+          <button class="btn-action text-danger btn-delete" title="Hapus Bingkai" ${frame.isDefault ? 'disabled style="opacity: 0.3;"' : ''}>
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        </div>
+      `;
+      
+      const btnUp = item.querySelector('.btn-move-up');
+      const btnDown = item.querySelector('.btn-move-down');
+      const btnDel = item.querySelector('.btn-delete');
+      
+      if (idx > 0) {
+        btnUp.addEventListener('click', () => moveFrameOrder(frame.id, -1));
+      }
+      if (idx < frames.length - 1) {
+        btnDown.addEventListener('click', () => moveFrameOrder(frame.id, 1));
+      }
+      if (!frame.isDefault) {
+        btnDel.addEventListener('click', () => handleDeleteFrame(frame.id));
+      }
+      
+      adminFrameItemsList.appendChild(item);
+    });
+  }
+
+  async function moveFrameOrder(frameId, direction) {
+    const frames = await getAllFrames();
+    const currentIndex = frames.findIndex(f => f.id === frameId);
+    if (currentIndex === -1) return;
+    
+    const targetIndex = currentIndex + direction;
+    if (targetIndex < 0 || targetIndex >= frames.length) return;
+    
+    const currentFrame = frames[currentIndex];
+    const targetFrame = frames[targetIndex];
+    
+    const tempOrder = currentFrame.order;
+    currentFrame.order = targetFrame.order;
+    targetFrame.order = tempOrder;
+    
+    await saveFrame(currentFrame);
+    await saveFrame(targetFrame);
+    
+    await renderAdminFrameList();
+    await renderEditorFrameSelector();
+  }
+
+  async function handleDeleteFrame(frameId) {
+    if (confirm('Apakah Anda yakin ingin menghapus bingkai ini?')) {
+      await deleteFrame(frameId);
+      
+      // Re-order
+      const frames = await getAllFrames();
+      for (let i = 0; i < frames.length; i++) {
+        frames[i].order = i;
+        await saveFrame(frames[i]);
+      }
+      
+      await renderAdminFrameList();
+      await renderEditorFrameSelector();
+    }
+  }
+
+  async function handleAdminSaveFrame() {
+    const name = newFrameName.value.trim();
+    if (!name) {
+      alert('Masukkan nama bingkai terlebih dahulu!');
+      return;
+    }
+    if (!newFrameFileBase64) {
+      alert('Pilih file gambar PNG transparan bingkai terlebih dahulu!');
+      return;
+    }
+    
+    const frames = await getAllFrames();
+    const nextOrder = frames.length > 0 ? Math.max(...frames.map(f => f.order)) + 1 : 0;
+    
+    const newFrame = {
+      id: 'custom_' + Date.now(),
+      name: name,
+      src: newFrameFileBase64,
+      order: nextOrder,
+      isDefault: false
+    };
+    
+    await saveFrame(newFrame);
+    
+    // Clear inputs
+    newFrameName.value = '';
+    newFrameFileInput.value = '';
+    newFrameFileName.textContent = 'Belum ada file terpilih';
+    newFrameFileBase64 = null;
+    
+    alert('Bingkai berhasil disimpan!');
+    
+    await renderAdminFrameList();
+    await renderEditorFrameSelector();
+  }
+
   // --- INITIALIZATION ---
-  function init() {
+  async function init() {
     // Setup frameImage onload handler first to handle dynamic scaling
     frameImage.onload = () => {
       updateCanvasDimensions();
@@ -249,10 +561,27 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     setupTabNavigation();
-    loadDefaultFrame();
     setupEventListeners();
+    
+    // Initialize Database
+    await initDBAndFrames();
+    
+    // Load default frame or list from database
+    const frames = await getAllFrames();
+    if (frames.length > 0) {
+      frameImage.src = frames[0].src;
+    } else {
+      loadDefaultFrame();
+    }
+    
+    // Render selectors
+    await renderEditorFrameSelector();
+    
     resetMediaTransformations();
     startCanvasLoop();
+    
+    // Show start screen selector modal
+    await showStartModal();
   }
 
   // --- TAB NAVIGATION ---
@@ -271,6 +600,20 @@ document.addEventListener('DOMContentLoaded', () => {
             content.classList.add('active');
           }
         });
+
+        // Add tab admin auth check
+        if (targetTab === 'tab-admin') {
+          if (isAdminAuthenticated) {
+            adminAuthPanel.style.display = 'none';
+            adminDashboardPanel.style.display = 'block';
+            renderAdminFrameList();
+          } else {
+            adminAuthPanel.style.display = 'block';
+            adminDashboardPanel.style.display = 'none';
+            adminPasswordInput.value = '';
+            adminLoginError.style.display = 'none';
+          }
+        }
       });
     });
   }
@@ -278,10 +621,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- FRAME LOADING ---
   function loadDefaultFrame() {
     defaultFrameUrl = 'twibonze CAI26 (1).png';
-    
-    // Set default preview thumbnail in HTML
-    frameDefaultThumb.innerHTML = `<img src="twibonze CAI26 (1).png" alt="Bingkai CAI 26" style="width: 100%; height: 100%; object-fit: contain;">`;
-    
     frameImage.src = defaultFrameUrl;
   }
 
@@ -291,12 +630,6 @@ document.addEventListener('DOMContentLoaded', () => {
     fileFrameInput.addEventListener('change', handleCustomFrameUpload);
     btnUploadFrame.addEventListener('click', () => fileFrameInput.click());
     btnClearCustomFrame.addEventListener('click', removeCustomFrame);
-    
-    frameDefaultOpt.addEventListener('click', () => {
-      frameDefaultOpt.classList.add('active');
-      btnUploadFrame.classList.remove('active');
-      frameImage.src = defaultFrameUrl;
-    });
 
     // Media inputs
     uploadGalleryCard.addEventListener('click', () => fileMediaInput.click());
@@ -408,6 +741,42 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnQuickCloseCamera) {
       btnQuickCloseCamera.addEventListener('click', closeCamera);
     }
+
+    // Admin Panel Actions
+    if (btnAdminLogin) {
+      btnAdminLogin.addEventListener('click', handleAdminLogin);
+    }
+    if (adminPasswordInput) {
+      adminPasswordInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleAdminLogin();
+      });
+    }
+    if (btnAdminLogout) {
+      btnAdminLogout.addEventListener('click', handleAdminLogout);
+    }
+    if (newFrameFileInput) {
+      newFrameFileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.type !== 'image/png') {
+          alert('Hanya diperbolehkan format bingkai PNG transparan!');
+          newFrameFileInput.value = '';
+          newFrameFileName.textContent = 'Belum ada file terpilih';
+          newFrameFileBase64 = null;
+          return;
+        }
+        newFrameFileName.textContent = file.name;
+        
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          newFrameFileBase64 = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+    if (btnAdminSaveFrame) {
+      btnAdminSaveFrame.addEventListener('click', handleAdminSaveFrame);
+    }
   }
 
   // --- TRANSFORMATION MANAGEMENT ---
@@ -485,7 +854,7 @@ document.addEventListener('DOMContentLoaded', () => {
         customFrameInfo.style.display = 'flex';
         
         // Update active UI cards
-        frameDefaultOpt.classList.remove('active');
+        document.querySelectorAll('.frame-selector-grid .frame-option').forEach(opt => opt.classList.remove('active'));
         btnUploadFrame.classList.add('active');
       };
       img.src = event.target.result;
@@ -493,15 +862,18 @@ document.addEventListener('DOMContentLoaded', () => {
     reader.readAsDataURL(file);
   }
 
-  function removeCustomFrame() {
+  async function removeCustomFrame() {
     customFrameImage = null;
     customFrameInfo.style.display = 'none';
     fileFrameInput.value = '';
     
-    // Revert to default
-    frameDefaultOpt.classList.add('active');
-    btnUploadFrame.classList.remove('active');
-    frameImage.src = defaultFrameUrl;
+    // Revert to first frame from database
+    const frames = await getAllFrames();
+    if (frames.length > 0) {
+      selectFrame(frames[0]);
+    } else {
+      frameImage.src = defaultFrameUrl;
+    }
   }
 
   // --- MEDIA HANDLING (GALLERY) ---
