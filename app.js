@@ -210,8 +210,44 @@ document.addEventListener('DOMContentLoaded', () => {
   </svg>
   `;
 
+  // --- CANVAS DIMENSIONS UPDATE ---
+  function updateCanvasDimensions() {
+    if (frameImage.complete && frameImage.naturalWidth > 0) {
+      const width = frameImage.naturalWidth;
+      const height = frameImage.naturalHeight;
+      canvas.width = width;
+      canvas.height = height;
+      
+      // Update container's aspect ratio so the container doesn't force a square ratio
+      canvasContainer.style.aspectRatio = `${width} / ${height}`;
+      
+      // Also update the output video preview's aspect ratio
+      if (outputVideoPreview) {
+        outputVideoPreview.style.aspectRatio = `${width} / ${height}`;
+      }
+
+      // Automatically recalculate fit scale if we have media loaded
+      if (mediaElement && mediaWidth > 0 && mediaHeight > 0) {
+        scale = Math.max(canvas.width / mediaWidth, canvas.height / mediaHeight);
+        
+        sliderScale.value = scale;
+        valScale.textContent = Math.round(scale * 100) + '%';
+        if (quickSliderScale) {
+          quickSliderScale.value = scale;
+          quickValScale.textContent = Math.round(scale * 100) + '%';
+        }
+      }
+    }
+  }
+
   // --- INITIALIZATION ---
   function init() {
+    // Setup frameImage onload handler first to handle dynamic scaling
+    frameImage.onload = () => {
+      updateCanvasDimensions();
+      draw();
+    };
+
     setupTabNavigation();
     loadDefaultFrame();
     setupEventListeners();
@@ -246,10 +282,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Set default preview thumbnail in HTML
     frameDefaultThumb.innerHTML = `<img src="twibonze CAI26 (1).png" alt="Bingkai CAI 26" style="width: 100%; height: 100%; object-fit: contain;">`;
     
-    // Load to main frameImage
-    frameImage.onload = () => {
-      draw();
-    };
     frameImage.src = defaultFrameUrl;
   }
 
@@ -382,15 +414,22 @@ document.addEventListener('DOMContentLoaded', () => {
   function resetMediaTransformations() {
     posX = 0;
     posY = 0;
-    scale = 1.0;
+    
+    // Calculate default fit scale if media is present
+    if (mediaElement && mediaWidth > 0 && mediaHeight > 0) {
+      scale = Math.max(canvas.width / mediaWidth, canvas.height / mediaHeight);
+    } else {
+      scale = 1.0;
+    }
+    
     rotateAngle = 0;
     flipHorizontal = false;
     
-    sliderScale.value = 1.0;
-    valScale.textContent = '100%';
+    sliderScale.value = scale;
+    valScale.textContent = Math.round(scale * 100) + '%';
     if (quickSliderScale) {
-      quickSliderScale.value = 1.0;
-      quickValScale.textContent = '100%';
+      quickSliderScale.value = scale;
+      quickValScale.textContent = Math.round(scale * 100) + '%';
     }
     sliderRotate.value = 0;
     valRotate.textContent = '0°';
@@ -480,12 +519,6 @@ document.addEventListener('DOMContentLoaded', () => {
         mediaWidth = img.naturalWidth;
         mediaHeight = img.naturalHeight;
         
-        // Autofit logic
-        const scaleFit = Math.max(1080 / mediaWidth, 1080 / mediaHeight);
-        scale = scaleFit;
-        sliderScale.value = scale;
-        valScale.textContent = Math.round(scale * 100) + '%';
-        
         showActiveMediaBadge(file.name, 'FOTO');
         resetMediaTransformations();
         showQuickPanels();
@@ -503,12 +536,6 @@ document.addEventListener('DOMContentLoaded', () => {
         mediaElement = sourceVideo;
         mediaWidth = sourceVideo.videoWidth;
         mediaHeight = sourceVideo.videoHeight;
-        
-        // Fit logic
-        const scaleFit = Math.max(1080 / mediaWidth, 1080 / mediaHeight);
-        scale = scaleFit;
-        sliderScale.value = scale;
-        valScale.textContent = Math.round(scale * 100) + '%';
         
         showActiveMediaBadge(file.name, 'VIDEO');
         resetMediaTransformations();
@@ -570,8 +597,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Render webcam video feed to editor dynamically
         mediaType = 'camera';
         mediaElement = cameraVideo;
-        mediaWidth = 1080; // Ideal dimensions
-        mediaHeight = 1080;
+        mediaWidth = cameraVideo.videoWidth || 1080; // Ideal dimensions
+        mediaHeight = cameraVideo.videoHeight || 1080;
         flipHorizontal = (cameraFacingMode === 'user'); // Mirror only for front camera
         
         resetMediaTransformations();
@@ -591,8 +618,8 @@ document.addEventListener('DOMContentLoaded', () => {
           cameraVideo.play();
           mediaType = 'camera';
           mediaElement = cameraVideo;
-          mediaWidth = 640; 
-          mediaHeight = 480;
+          mediaWidth = cameraVideo.videoWidth || 640; 
+          mediaHeight = cameraVideo.videoHeight || 480;
           flipHorizontal = (cameraFacingMode === 'user'); // Mirror only for front camera
           resetMediaTransformations();
           if (quickAdjustPanel) quickAdjustPanel.style.display = 'block';
@@ -716,8 +743,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     
-    startX = clientX - posX;
-    startY = clientY - posY;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    startX = (clientX * scaleX) - posX;
+    startY = (clientY * scaleY) - posY;
     
     if (e.cancelable) e.preventDefault();
   }
@@ -728,8 +759,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     
-    posX = clientX - startX;
-    posY = clientY - startY;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    posX = (clientX * scaleX) - startX;
+    posY = (clientY * scaleY) - startY;
     
     draw();
     if (e.cancelable) e.preventDefault();
