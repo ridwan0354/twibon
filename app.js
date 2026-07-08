@@ -278,18 +278,35 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function getAllFrames() {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, 'readonly');
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.getAll();
-      request.onsuccess = () => {
-        let list = request.result;
-        list.sort((a, b) => a.order - b.order);
-        resolve(list);
-      };
-      request.onerror = () => reject(request.error);
-    });
+    try {
+      const db = await openDB();
+      return new Promise((resolve) => {
+        const transaction = db.transaction(STORE_NAME, 'readonly');
+        const store = transaction.objectStore(STORE_NAME);
+        const request = store.getAll();
+        request.onsuccess = () => {
+          let list = request.result;
+          list.sort((a, b) => a.order - b.order);
+          resolve(list);
+        };
+        request.onerror = () => {
+          resolve(getFallbackFramesList());
+        };
+      });
+    } catch (err) {
+      console.warn('IndexedDB not supported or blocked, using fallback list:', err);
+      return getFallbackFramesList();
+    }
+  }
+
+  function getFallbackFramesList() {
+    return [{
+      id: 'default_cai_2026',
+      name: 'CAI Lombok 2026',
+      src: 'twibonze CAI26 (1).png',
+      order: 0,
+      isDefault: true
+    }];
   }
 
   async function saveFrame(frame) {
@@ -417,7 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- ADMIN PANEL FUNCTIONS ---
   function handleAdminLogin() {
-    const enteredPassword = adminPasswordInput.value;
+    const enteredPassword = adminPasswordInput.value.trim();
     if (enteredPassword === '354313') {
       isAdminAuthenticated = true;
       adminLoginError.style.display = 'none';

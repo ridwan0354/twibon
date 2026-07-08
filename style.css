@@ -38,11 +38,20 @@ body {
   background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
   color: var(--text-primary);
   min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* Centering layout wrapper to prevent dynamic overlays from flexbox spacing bugs */
+.app-wrapper {
   display: flex;
   justify-content: center;
   align-items: center;
+  min-height: 100vh;
   padding: 20px;
-  overflow-x: hidden;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* App Container */
@@ -1245,4 +1254,38 @@ input[type="range"]::-webkit-slider-thumb:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
   width: 100%;
+}
+
+/* Mobile responsive styles overrides for Modal and Editor */
+@media (max-width: 480px) {
+  .app-wrapper {
+    padding: 0;
+  }
+  .modal-overlay {
+    padding: 10px;
+  }
+  .modal-card {
+    max-height: 90vh;
+    width: 95%;
+  }
+  .modal-header {
+    padding: 16px 12px;
+  }
+  .modal-header h2 {
+    font-size: 20px;
+  }
+  .modal-body {
+    padding: 16px 12px;
+  }
+  .modal-frame-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 12px;
+  }
+  .modal-frame-item {
+    padding: 8px;
+    gap: 8px;
+  }
+  .modal-frame-item h4 {
+    font-size: 11px;
+  }
 }
