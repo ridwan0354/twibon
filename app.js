@@ -292,7 +292,20 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const response = await fetch('api.php');
       if (response.ok) {
-        return await response.json();
+        const frames = await response.json();
+        // Fallback slots patch for default frame if it is missing in the DB
+        frames.forEach(frame => {
+          if ((frame.id === 'default_cai_2026' || frame.isDefault) && (!frame.slots || frame.slots.length === 0)) {
+            frame.slots_count = 4;
+            frame.slots = [
+              {"x": 92, "y": 153, "width": 896, "height": 413},
+              {"x": 92, "y": 582, "width": 442, "height": 498},
+              {"x": 546, "y": 582, "width": 442, "height": 243},
+              {"x": 546, "y": 837, "width": 442, "height": 243}
+            ];
+          }
+        });
+        return frames;
       }
       return getFallbackFramesList();
     } catch (err) {
@@ -307,7 +320,14 @@ document.addEventListener('DOMContentLoaded', () => {
       name: 'CAI Lombok 2026',
       src: 'twibonze CAI26 (1).png',
       order: 0,
-      isDefault: true
+      isDefault: true,
+      slots_count: 4,
+      slots: [
+        {"x": 92, "y": 153, "width": 896, "height": 413},
+        {"x": 92, "y": 582, "width": 442, "height": 498},
+        {"x": 546, "y": 582, "width": 442, "height": 243},
+        {"x": 546, "y": 837, "width": 442, "height": 243}
+      ]
     }];
   }
 
@@ -825,7 +845,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load default frame or list from database
     const frames = await getAllFrames();
     if (frames.length > 0) {
-      frameImage.src = frames[0].src;
+      selectFrame(frames[0]);
     } else {
       loadDefaultFrame();
     }
