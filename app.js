@@ -295,9 +295,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const response = await fetch('api.php');
       if (response.ok) {
         const frames = await response.json();
-        // Fallback slots patch for default frame if it is missing in the DB
+        // Always enforce slots coordinates for default frame
         frames.forEach(frame => {
-          if ((frame.id === 'default_cai_2026' || frame.isDefault) && (!frame.slots || frame.slots.length === 0)) {
+          if (frame.id === 'default_cai_2026' || frame.isDefault) {
             frame.slots_count = 4;
             frame.slots = [
               {"x": 92, "y": 153, "width": 896, "height": 413},
