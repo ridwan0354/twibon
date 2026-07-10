@@ -122,6 +122,18 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeSlotIndex = 0;
   let activeTabId = 'tab-media';
   let activeFrame = null;
+
+  // Admin Drag & Resize Layout State
+  let adminActiveDragBox = null;
+  let adminDragMode = null; // 'move' | 'resize'
+  let adminDragStartMouseX = 0;
+  let adminDragStartMouseY = 0;
+  let adminDragStartInputX = 0;
+  let adminDragStartInputY = 0;
+  let adminDragStartInputW = 0;
+  let adminDragStartInputH = 0;
+  let adminDragScaleFactor = 1.0;
+  let adminActiveGroupEl = null;
   
   let mediaType = null; // 'image' | 'video' | 'camera'
   let cameraFacingMode = 'user'; // 'user' (front camera) or 'environment' (back camera)
@@ -653,6 +665,8 @@ document.addEventListener('DOMContentLoaded', () => {
       
       const color = colors[i];
       const box = document.createElement('div');
+      box.className = 'admin-preview-box';
+      box.dataset.slotIdx = i;
       box.style.position = 'absolute';
       box.style.left = leftPct;
       box.style.top = topPct;
@@ -668,9 +682,129 @@ document.addEventListener('DOMContentLoaded', () => {
       box.style.fontSize = '11px';
       box.style.fontWeight = 'bold';
       box.style.textShadow = '0 1px 3px rgba(0,0,0,0.8)';
+      box.style.cursor = 'move';
+      box.style.userSelect = 'none';
       box.textContent = `Foto ${i+1}`;
       
+      // Resize handle at bottom right corner
+      const handle = document.createElement('div');
+      handle.className = 'resize-handle';
+      handle.style.position = 'absolute';
+      handle.style.right = '-4px';
+      handle.style.bottom = '-4px';
+      handle.style.width = '12px';
+      handle.style.height = '12px';
+      handle.style.background = color.border;
+      handle.style.border = '2px solid #fff';
+      handle.style.borderRadius = '50%';
+      handle.style.cursor = 'se-resize';
+      handle.style.zIndex = '10';
+      box.appendChild(handle);
+      
       overlay.appendChild(box);
+    }
+    
+    // Bind overlay interactive dragging listeners if they haven't been bound yet
+    if (!overlay.dataset.listenersBound) {
+      overlay.dataset.listenersBound = 'true';
+      
+      // Mouse dragging / resizing events
+      const handleStart = (clientX, clientY, targetEl) => {
+        const handle = targetEl.closest('.resize-handle');
+        const box = targetEl.closest('.admin-preview-box');
+        if (!box) return;
+        
+        const idx = parseInt(box.dataset.slotIdx);
+        const group = document.querySelector(`.slot-coord-group[data-slot-idx="${idx}"]`);
+        if (!group) return;
+        
+        adminActiveDragBox = box;
+        adminActiveGroupEl = group;
+        adminDragStartMouseX = clientX;
+        adminDragStartMouseY = clientY;
+        
+        adminDragStartInputX = parseInt(group.querySelector('.slot-x').value || 0);
+        adminDragStartInputY = parseInt(group.querySelector('.slot-y').value || 0);
+        adminDragStartInputW = parseInt(group.querySelector('.slot-w').value || 1080);
+        adminDragStartInputH = parseInt(group.querySelector('.slot-h').value || 1080);
+        
+        const rect = overlay.getBoundingClientRect();
+        adminDragScaleFactor = 1080 / rect.width;
+        
+        if (handle) {
+          adminDragMode = 'resize';
+        } else {
+          adminDragMode = 'move';
+        }
+      };
+      
+      const handleMove = (clientX, clientY) => {
+        if (!adminActiveDragBox || !adminActiveGroupEl) return;
+        
+        const dx = clientX - adminDragStartMouseX;
+        const dy = clientY - adminDragStartMouseY;
+        const canvasDx = dx * adminDragScaleFactor;
+        const canvasDy = dy * adminDragScaleFactor;
+        
+        const xInput = adminActiveGroupEl.querySelector('.slot-x');
+        const yInput = adminActiveGroupEl.querySelector('.slot-y');
+        const wInput = adminActiveGroupEl.querySelector('.slot-w');
+        const hInput = adminActiveGroupEl.querySelector('.slot-h');
+        
+        if (adminDragMode === 'move') {
+          let nextX = adminDragStartInputX + canvasDx;
+          let nextY = adminDragStartInputY + canvasDy;
+          
+          nextX = Math.min(1080 - adminDragStartInputW, Math.max(0, nextX));
+          nextY = Math.min(1080 - adminDragStartInputH, Math.max(0, nextY));
+          
+          xInput.value = Math.round(nextX);
+          yInput.value = Math.round(nextY);
+        } else if (adminDragMode === 'resize') {
+          let nextW = adminDragStartInputW + canvasDx;
+          let nextH = adminDragStartInputH + canvasDy;
+          
+          nextW = Math.min(1080 - adminDragStartInputX, Math.max(10, nextW));
+          nextH = Math.min(1080 - adminDragStartInputY, Math.max(10, nextH));
+          
+          wInput.value = Math.round(nextW);
+          hInput.value = Math.round(nextH);
+        }
+        
+        updateAdminPreviewOverlay();
+      };
+      
+      const handleEnd = () => {
+        adminActiveDragBox = null;
+        adminActiveGroupEl = null;
+        adminDragMode = null;
+      };
+      
+      overlay.addEventListener('mousedown', (e) => {
+        handleStart(e.clientX, e.clientY, e.target);
+        e.preventDefault();
+      });
+      
+      window.addEventListener('mousemove', (e) => {
+        handleMove(e.clientX, e.clientY);
+      });
+      
+      window.addEventListener('mouseup', handleEnd);
+      
+      overlay.addEventListener('touchstart', (e) => {
+        const touch = e.touches[0];
+        handleStart(touch.clientX, touch.clientY, e.target);
+        if (e.cancelable) e.preventDefault();
+      }, { passive: false });
+      
+      window.addEventListener('touchmove', (e) => {
+        if (!adminActiveDragBox) return;
+        const touch = e.touches[0];
+        handleMove(touch.clientX, touch.clientY);
+        if (e.cancelable) e.preventDefault();
+      }, { passive: false });
+      
+      window.addEventListener('touchend', handleEnd);
     }
   }
 
