@@ -134,6 +134,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let adminDragStartInputH = 0;
   let adminDragScaleFactor = 1.0;
   let adminActiveGroupEl = null;
+  let adminFrameNaturalWidth = 1080;
+  let adminFrameNaturalHeight = 1080;
   
   let mediaType = null; // 'image' | 'video' | 'camera'
   let cameraFacingMode = 'user'; // 'user' (front camera) or 'environment' (back camera)
@@ -373,6 +375,46 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const slotsCount = frame.slots_count !== undefined ? parseInt(frame.slots_count) : 4;
     updateSlotsVisibility(slotsCount);
+    recalculateAllSlotsFitScale();
+  }
+
+  function recalculateAllSlotsFitScale() {
+    slots.forEach((slot, idx) => {
+      if (slot.mediaElement && slot.mediaWidth > 0 && slot.mediaHeight > 0) {
+        let slotW = canvas.width;
+        let slotH = canvas.height;
+        if (activeFrame && activeFrame.slots && activeFrame.slots[idx]) {
+          slotW = activeFrame.slots[idx].width || canvas.width;
+          slotH = activeFrame.slots[idx].height || canvas.height;
+        }
+        
+        slot.scale = Math.max(slotW / slot.mediaWidth, slotH / slot.mediaHeight);
+        slot.posX = 0;
+        slot.posY = 0;
+        slot.rotateAngle = 0;
+        slot.flipHorizontal = false;
+      }
+    });
+    
+    const activeSlot = slots[activeSlotIndex];
+    if (activeSlot) {
+      scale = activeSlot.scale;
+      posX = activeSlot.posX;
+      posY = activeSlot.posY;
+      rotateAngle = activeSlot.rotateAngle;
+      flipHorizontal = activeSlot.flipHorizontal;
+      
+      sliderScale.value = scale;
+      valScale.textContent = Math.round(scale * 100) + '%';
+      if (quickSliderScale) {
+        quickSliderScale.value = scale;
+        quickValScale.textContent = Math.round(scale * 100) + '%';
+      }
+      sliderRotate.value = 0;
+      valRotate.textContent = '0°';
+    }
+    
+    draw();
   }
 
   function updateSlotsVisibility(slotsCount) {
@@ -675,13 +717,13 @@ document.addEventListener('DOMContentLoaded', () => {
       
       const xVal = parseFloat(group.querySelector('.slot-x').value || 0);
       const yVal = parseFloat(group.querySelector('.slot-y').value || 0);
-      const wVal = parseFloat(group.querySelector('.slot-w').value || 1080);
-      const hVal = parseFloat(group.querySelector('.slot-h').value || 1080);
+      const wVal = parseFloat(group.querySelector('.slot-w').value || adminFrameNaturalWidth);
+      const hVal = parseFloat(group.querySelector('.slot-h').value || adminFrameNaturalHeight);
       
-      const leftPct = (xVal / 10.8).toFixed(2) + '%';
-      const topPct = (yVal / 10.8).toFixed(2) + '%';
-      const widthPct = (wVal / 10.8).toFixed(2) + '%';
-      const heightPct = (hVal / 10.8).toFixed(2) + '%';
+      const leftPct = (xVal / adminFrameNaturalWidth * 100).toFixed(2) + '%';
+      const topPct = (yVal / adminFrameNaturalHeight * 100).toFixed(2) + '%';
+      const widthPct = (wVal / adminFrameNaturalWidth * 100).toFixed(2) + '%';
+      const heightPct = (hVal / adminFrameNaturalHeight * 100).toFixed(2) + '%';
       
       const color = colors[i];
       const box = document.createElement('div');
@@ -728,6 +770,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!overlay.dataset.listenersBound) {
       overlay.dataset.listenersBound = 'true';
       
+      let adminDragScaleFactorX = 1.0;
+      let adminDragScaleFactorY = 1.0;
+
       // Mouse dragging / resizing events
       const handleStart = (clientX, clientY, targetEl) => {
         const handle = targetEl.closest('.resize-handle');
@@ -745,11 +790,12 @@ document.addEventListener('DOMContentLoaded', () => {
         
         adminDragStartInputX = parseInt(group.querySelector('.slot-x').value || 0);
         adminDragStartInputY = parseInt(group.querySelector('.slot-y').value || 0);
-        adminDragStartInputW = parseInt(group.querySelector('.slot-w').value || 1080);
-        adminDragStartInputH = parseInt(group.querySelector('.slot-h').value || 1080);
+        adminDragStartInputW = parseInt(group.querySelector('.slot-w').value || adminFrameNaturalWidth);
+        adminDragStartInputH = parseInt(group.querySelector('.slot-h').value || adminFrameNaturalHeight);
         
         const rect = overlay.getBoundingClientRect();
-        adminDragScaleFactor = 1080 / rect.width;
+        adminDragScaleFactorX = adminFrameNaturalWidth / rect.width;
+        adminDragScaleFactorY = adminFrameNaturalHeight / rect.height;
         
         if (handle) {
           adminDragMode = 'resize';
@@ -763,8 +809,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const dx = clientX - adminDragStartMouseX;
         const dy = clientY - adminDragStartMouseY;
-        const canvasDx = dx * adminDragScaleFactor;
-        const canvasDy = dy * adminDragScaleFactor;
+        const canvasDx = dx * adminDragScaleFactorX;
+        const canvasDy = dy * adminDragScaleFactorY;
         
         const xInput = adminActiveGroupEl.querySelector('.slot-x');
         const yInput = adminActiveGroupEl.querySelector('.slot-y');
@@ -775,8 +821,8 @@ document.addEventListener('DOMContentLoaded', () => {
           let nextX = adminDragStartInputX + canvasDx;
           let nextY = adminDragStartInputY + canvasDy;
           
-          nextX = Math.min(1080 - adminDragStartInputW, Math.max(0, nextX));
-          nextY = Math.min(1080 - adminDragStartInputH, Math.max(0, nextY));
+          nextX = Math.min(adminFrameNaturalWidth - adminDragStartInputW, Math.max(0, nextX));
+          nextY = Math.min(adminFrameNaturalHeight - adminDragStartInputH, Math.max(0, nextY));
           
           xInput.value = Math.round(nextX);
           yInput.value = Math.round(nextY);
@@ -784,8 +830,8 @@ document.addEventListener('DOMContentLoaded', () => {
           let nextW = adminDragStartInputW + canvasDx;
           let nextH = adminDragStartInputH + canvasDy;
           
-          nextW = Math.min(1080 - adminDragStartInputX, Math.max(10, nextW));
-          nextH = Math.min(1080 - adminDragStartInputY, Math.max(10, nextH));
+          nextW = Math.min(adminFrameNaturalWidth - adminDragStartInputX, Math.max(10, nextW));
+          nextH = Math.min(adminFrameNaturalHeight - adminDragStartInputY, Math.max(10, nextH));
           
           wInput.value = Math.round(nextW);
           hInput.value = Math.round(nextH);
@@ -1069,21 +1115,44 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.onload = (event) => {
           newFrameFileBase64 = event.target.result;
           
-          // Show live layout preview to admin
-          const previewImg = document.getElementById('adminPreviewImage');
-          const previewContainer = document.getElementById('adminLayoutPreviewContainer');
-          const configWrapper = document.getElementById('adminSlotsConfigWrapper');
-          if (previewImg && previewContainer && configWrapper) {
-            previewImg.src = event.target.result;
-            previewContainer.style.display = 'block';
-            configWrapper.style.display = 'flex';
+          const img = new Image();
+          img.onload = () => {
+            adminFrameNaturalWidth = img.naturalWidth;
+            adminFrameNaturalHeight = img.naturalHeight;
             
-            // Trigger overlay updates
-            const slotsCountEl = document.getElementById('newFrameSlotsCount');
-            if (slotsCountEl) {
-              slotsCountEl.dispatchEvent(new Event('change'));
+            const previewImg = document.getElementById('adminPreviewImage');
+            const previewContainer = document.getElementById('adminLayoutPreviewContainer');
+            const configWrapper = document.getElementById('adminSlotsConfigWrapper');
+            const scaleHeading = document.getElementById('adminScaleHeading');
+            
+            if (previewImg && previewContainer && configWrapper) {
+              previewImg.src = event.target.result;
+              previewContainer.style.display = 'block';
+              configWrapper.style.display = 'flex';
+              
+              if (scaleHeading) {
+                scaleHeading.textContent = `Atur Posisi Area Foto (Skala ${adminFrameNaturalWidth}x${adminFrameNaturalHeight})`;
+              }
+              
+              document.querySelectorAll('.slot-coord-group').forEach(group => {
+                const xIn = group.querySelector('.slot-x');
+                const yIn = group.querySelector('.slot-y');
+                const wIn = group.querySelector('.slot-w');
+                const hIn = group.querySelector('.slot-h');
+                
+                if (xIn && xIn.value === '0') xIn.value = '0';
+                if (yIn && yIn.value === '0') yIn.value = '0';
+                if (wIn && (wIn.value === '1080' || wIn.value === '')) wIn.value = adminFrameNaturalWidth;
+                if (hIn && (hIn.value === '1080' || hIn.value === '')) hIn.value = adminFrameNaturalHeight;
+              });
+              
+              const slotsCountEl = document.getElementById('newFrameSlotsCount');
+              if (slotsCountEl) {
+                slotsCountEl.dispatchEvent(new Event('change'));
+              }
             }
-          }
+          };
+          img.src = event.target.result;
         };
         reader.readAsDataURL(file);
       });
