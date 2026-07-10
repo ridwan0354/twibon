@@ -140,13 +140,30 @@ if ($method === 'POST') {
             $frames = read_frames();
             $next_order = count($frames) > 0 ? max(array_column($frames, 'order')) + 1 : 0;
             
+            // Parse slots coordinates sent from admin panel
+            $slots_count = isset($_POST['slots_count']) ? intval($_POST['slots_count']) : 4;
+            $slots_arr = [];
+            if (isset($_POST['slots']) && !empty($_POST['slots'])) {
+                $parsed = json_decode($_POST['slots'], true);
+                if (is_array($parsed)) {
+                    $slots_arr = $parsed;
+                }
+            }
+            // If no valid slots provided, default to full-frame slots
+            if (empty($slots_arr)) {
+                for ($s = 0; $s < $slots_count; $s++) {
+                    $slots_arr[] = ["x" => 0, "y" => 0, "width" => 1080, "height" => 1080];
+                }
+            }
+            
             $new_frame = [
                 "id" => "custom_" . time(),
                 "name" => trim($_POST['name']),
                 "src" => "uploads/" . $filename,
                 "order" => $next_order,
                 "isDefault" => false,
-                "slots_count" => isset($_POST['slots_count']) ? intval($_POST['slots_count']) : 4
+                "slots_count" => $slots_count,
+                "slots" => $slots_arr
             ];
             
             $frames[] = $new_frame;
