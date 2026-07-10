@@ -334,6 +334,46 @@ document.addEventListener('DOMContentLoaded', () => {
     fileFrameInput.value = '';
     
     updateEditorSelectorActive(frame.id);
+    
+    const slotsCount = frame.slots_count !== undefined ? parseInt(frame.slots_count) : 4;
+    updateSlotsVisibility(slotsCount);
+  }
+
+  function updateSlotsVisibility(slotsCount) {
+    // Hide or show slot buttons based on slotsCount
+    document.querySelectorAll('.slot-btn').forEach((btn, idx) => {
+      if (idx < slotsCount) {
+        btn.style.display = 'flex';
+      } else {
+        btn.style.display = 'none';
+      }
+    });
+
+    // Clean up any slots beyond the new limit
+    for (let i = slotsCount; i < slots.length; i++) {
+      if (slots[i].mediaElement) {
+        if (slots[i].mediaType === 'video') {
+          slots[i].mediaElement.pause();
+          slots[i].mediaElement.src = '';
+        }
+        slots[i].mediaType = null;
+        slots[i].mediaElement = null;
+        slots[i].mediaWidth = 0;
+        slots[i].mediaHeight = 0;
+        slots[i].name = '';
+        slots[i].typeLabel = '';
+      }
+    }
+
+    // Reset active slot if it falls outside the range
+    if (activeSlotIndex >= slotsCount) {
+      loadActiveSlotState(0);
+    } else {
+      // Just load current active slot to refresh UI
+      loadActiveSlotState(activeSlotIndex);
+    }
+    
+    updateSlotThumbnails();
   }
 
   function updateEditorSelectorActive(activeId) {
@@ -523,9 +563,13 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     
+    const slotsCountEl = document.getElementById('newFrameSlotsCount');
+    const slotsCount = slotsCountEl ? slotsCountEl.value : 4;
+    
     const formData = new FormData();
     formData.append('name', name);
     formData.append('frame_image', file);
+    formData.append('slots_count', slotsCount);
     formData.append('password', '354313');
     
     try {
@@ -629,6 +673,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function loadDefaultFrame() {
     defaultFrameUrl = 'twibonze CAI26 (1).png';
     frameImage.src = defaultFrameUrl;
+    updateSlotsVisibility(4);
   }
 
   // --- EVENT LISTENERS ---
@@ -639,7 +684,10 @@ document.addEventListener('DOMContentLoaded', () => {
     btnClearCustomFrame.addEventListener('click', removeCustomFrame);
 
     // Media inputs
-    uploadGalleryCard.addEventListener('click', () => fileMediaInput.click());
+    uploadGalleryCard.addEventListener('click', () => {
+      fileMediaInput.value = '';
+      fileMediaInput.click();
+    });
     fileMediaInput.addEventListener('change', handleMediaUpload);
     cameraCard.addEventListener('click', openCamera);
     btnCloseCamera.addEventListener('click', closeCamera);
@@ -955,6 +1003,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update active UI cards
         document.querySelectorAll('.frame-selector-grid .frame-option').forEach(opt => opt.classList.remove('active'));
         btnUploadFrame.classList.add('active');
+        updateSlotsVisibility(4); // Custom uploaded frames default to 4 slots
       };
       img.src = event.target.result;
     };

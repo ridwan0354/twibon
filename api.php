@@ -138,7 +138,8 @@ if ($method === 'POST') {
                 "name" => trim($_POST['name']),
                 "src" => "uploads/" . $filename,
                 "order" => $next_order,
-                "isDefault" => false
+                "isDefault" => false,
+                "slots_count" => isset($_POST['slots_count']) ? intval($_POST['slots_count']) : 4
             ];
             
             $frames[] = $new_frame;
