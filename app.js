@@ -121,6 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
   ];
   let activeSlotIndex = 0;
   let activeTabId = 'tab-media';
+  let activeFrame = null;
   
   let mediaType = null; // 'image' | 'video' | 'camera'
   let cameraFacingMode = 'user'; // 'user' (front camera) or 'environment' (back camera)
@@ -330,6 +331,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function selectFrame(frame) {
+    activeFrame = frame;
     frameImage.src = frame.src;
     
     customFrameInfo.style.display = 'none';
@@ -566,12 +568,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     const slotsCountEl = document.getElementById('newFrameSlotsCount');
-    const slotsCount = slotsCountEl ? slotsCountEl.value : 4;
+    const slotsCount = slotsCountEl ? parseInt(slotsCountEl.value) : 4;
+    
+    // Read the slots coordinates config from the form
+    const slotsArr = [];
+    for (let i = 0; i < slotsCount; i++) {
+      const group = document.querySelector(`.slot-coord-group[data-slot-idx="${i}"]`);
+      if (group) {
+        slotsArr.push({
+          x: parseInt(group.querySelector('.slot-x').value || 0),
+          y: parseInt(group.querySelector('.slot-y').value || 0),
+          width: parseInt(group.querySelector('.slot-w').value || 1080),
+          height: parseInt(group.querySelector('.slot-h').value || 1080)
+        });
+      }
+    }
     
     const formData = new FormData();
     formData.append('name', name);
     formData.append('frame_image', file);
     formData.append('slots_count', slotsCount);
+    formData.append('slots', JSON.stringify(slotsArr));
     formData.append('password', '354313');
     
     try {
@@ -589,6 +606,12 @@ document.addEventListener('DOMContentLoaded', () => {
         newFrameFileName.textContent = 'Belum ada file terpilih';
         newFrameFileBase64 = null;
         
+        // Hide preview containers
+        const previewContainer = document.getElementById('adminLayoutPreviewContainer');
+        const configWrapper = document.getElementById('adminSlotsConfigWrapper');
+        if (previewContainer) previewContainer.style.display = 'none';
+        if (configWrapper) configWrapper.style.display = 'none';
+        
         await renderAdminFrameList();
         await renderEditorFrameSelector();
       } else {
@@ -597,6 +620,57 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       console.error(err);
       alert('Gagal menghubungkan ke server.');
+    }
+  }
+
+  function updateAdminPreviewOverlay() {
+    const overlay = document.getElementById('adminPreviewSlotsOverlay');
+    const newFrameSlotsCount = document.getElementById('newFrameSlotsCount');
+    if (!overlay || !newFrameSlotsCount) return;
+    overlay.innerHTML = '';
+    
+    const count = parseInt(newFrameSlotsCount.value || 4);
+    const colors = [
+      { bg: 'rgba(96, 165, 250, 0.25)', border: '#60a5fa' },
+      { bg: 'rgba(16, 185, 129, 0.25)', border: '#10b981' },
+      { bg: 'rgba(245, 158, 11, 0.25)', border: '#f59e0b' },
+      { bg: 'rgba(239, 68, 68, 0.25)', border: '#ef4444' }
+    ];
+    
+    for (let i = 0; i < count; i++) {
+      const group = document.querySelector(`.slot-coord-group[data-slot-idx="${i}"]`);
+      if (!group) continue;
+      
+      const xVal = parseFloat(group.querySelector('.slot-x').value || 0);
+      const yVal = parseFloat(group.querySelector('.slot-y').value || 0);
+      const wVal = parseFloat(group.querySelector('.slot-w').value || 1080);
+      const hVal = parseFloat(group.querySelector('.slot-h').value || 1080);
+      
+      const leftPct = (xVal / 10.8).toFixed(2) + '%';
+      const topPct = (yVal / 10.8).toFixed(2) + '%';
+      const widthPct = (wVal / 10.8).toFixed(2) + '%';
+      const heightPct = (hVal / 10.8).toFixed(2) + '%';
+      
+      const color = colors[i];
+      const box = document.createElement('div');
+      box.style.position = 'absolute';
+      box.style.left = leftPct;
+      box.style.top = topPct;
+      box.style.width = widthPct;
+      box.style.height = heightPct;
+      box.style.background = color.bg;
+      box.style.border = `2px solid ${color.border}`;
+      box.style.boxSizing = 'border-box';
+      box.style.display = 'flex';
+      box.style.alignItems = 'center';
+      box.style.justifyContent = 'center';
+      box.style.color = '#fff';
+      box.style.fontSize = '11px';
+      box.style.fontWeight = 'bold';
+      box.style.textShadow = '0 1px 3px rgba(0,0,0,0.8)';
+      box.textContent = `Foto ${i+1}`;
+      
+      overlay.appendChild(box);
     }
   }
 
@@ -674,6 +748,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- FRAME LOADING ---
   function loadDefaultFrame() {
     defaultFrameUrl = 'twibonze CAI26 (1).png';
+    activeFrame = {
+      id: 'default_cai_2026',
+      name: 'CAI Lombok 2026',
+      src: defaultFrameUrl,
+      isDefault: true,
+      slots_count: 4,
+      slots: [
+        {"x": 92, "y": 153, "width": 896, "height": 413},
+        {"x": 92, "y": 582, "width": 442, "height": 498},
+        {"x": 546, "y": 582, "width": 442, "height": 243},
+        {"x": 546, "y": 837, "width": 442, "height": 243}
+      ]
+    };
     frameImage.src = defaultFrameUrl;
     updateSlotsVisibility(4);
   }
@@ -827,10 +914,53 @@ document.addEventListener('DOMContentLoaded', () => {
         const reader = new FileReader();
         reader.onload = (event) => {
           newFrameFileBase64 = event.target.result;
+          
+          // Show live layout preview to admin
+          const previewImg = document.getElementById('adminPreviewImage');
+          const previewContainer = document.getElementById('adminLayoutPreviewContainer');
+          const configWrapper = document.getElementById('adminSlotsConfigWrapper');
+          if (previewImg && previewContainer && configWrapper) {
+            previewImg.src = event.target.result;
+            previewContainer.style.display = 'block';
+            configWrapper.style.display = 'flex';
+            
+            // Trigger overlay updates
+            const slotsCountEl = document.getElementById('newFrameSlotsCount');
+            if (slotsCountEl) {
+              slotsCountEl.dispatchEvent(new Event('change'));
+            }
+          }
         };
         reader.readAsDataURL(file);
       });
     }
+
+    // Slots Count dropdown listener to toggle inputs and preview overlay
+    const newFrameSlotsCount = document.getElementById('newFrameSlotsCount');
+    if (newFrameSlotsCount) {
+      newFrameSlotsCount.addEventListener('change', () => {
+        const count = parseInt(newFrameSlotsCount.value || 4);
+        document.querySelectorAll('.slot-coord-group').forEach((group, idx) => {
+          if (idx < count) {
+            group.style.display = 'block';
+          } else {
+            group.style.display = 'none';
+          }
+        });
+        updateAdminPreviewOverlay();
+      });
+    }
+
+    // Input listeners to update the layout overlay live
+    document.addEventListener('input', (e) => {
+      if (e.target.classList.contains('slot-x') || 
+          e.target.classList.contains('slot-y') || 
+          e.target.classList.contains('slot-w') || 
+          e.target.classList.contains('slot-h')) {
+        updateAdminPreviewOverlay();
+      }
+    });
+
     if (btnAdminSaveFrame) {
       btnAdminSaveFrame.addEventListener('click', handleAdminSaveFrame);
     }
@@ -935,7 +1065,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Calculate default fit scale if media is present
     if (mediaElement && mediaWidth > 0 && mediaHeight > 0) {
-      scale = Math.max(canvas.width / mediaWidth, canvas.height / mediaHeight);
+      // Find the slot width and height
+      let slotW = canvas.width;
+      let slotH = canvas.height;
+      if (activeFrame && activeFrame.slots && activeFrame.slots[activeSlotIndex]) {
+        slotW = activeFrame.slots[activeSlotIndex].width || canvas.width;
+        slotH = activeFrame.slots[activeSlotIndex].height || canvas.height;
+      }
+      scale = Math.max(slotW / mediaWidth, slotH / mediaHeight);
     } else {
       scale = 1.0;
     }
@@ -1347,6 +1484,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
 
+    // Convert client coordinates to 1080x1080 canvas coordinates
+    const clickX = (clientX - rect.left) * scaleX;
+    const clickY = (clientY - rect.top) * scaleY;
+
+    // If slots are defined, check if click is inside any slot's bounding box
+    if (activeFrame && activeFrame.slots && activeFrame.slots.length > 0) {
+      const clickedSlotIdx = activeFrame.slots.findIndex((slot, idx) => {
+        // Only check slots that are within the current slots count of the frame
+        const count = activeFrame.slots_count || 4;
+        if (idx >= count) return false;
+        
+        const x = slot.x !== undefined ? slot.x : 0;
+        const y = slot.y !== undefined ? slot.y : 0;
+        const w = slot.width !== undefined ? slot.width : canvas.width;
+        const h = slot.height !== undefined ? slot.height : canvas.height;
+        return (clickX >= x && clickX <= x + w && clickY >= y && clickY <= y + h);
+      });
+      
+      if (clickedSlotIdx !== -1 && clickedSlotIdx !== activeSlotIndex) {
+        loadActiveSlotState(clickedSlotIdx);
+      }
+    }
+
     startX = (clientX * scaleX) - posX;
     startY = (clientY * scaleY) - posY;
     
@@ -1418,10 +1578,36 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Draw all slot media in order
     slots.forEach((slot, idx) => {
       if (slot.mediaElement) {
+        // Retrieve slot coordinate from activeFrame metadata
+        let clipX = 0;
+        let clipY = 0;
+        let clipW = canvas.width;
+        let clipH = canvas.height;
+        let hasSlotCoords = false;
+        
+        if (activeFrame && activeFrame.slots && activeFrame.slots[idx]) {
+          const frameSlot = activeFrame.slots[idx];
+          clipX = frameSlot.x !== undefined ? frameSlot.x : 0;
+          clipY = frameSlot.y !== undefined ? frameSlot.y : 0;
+          clipW = frameSlot.width !== undefined ? frameSlot.width : canvas.width;
+          clipH = frameSlot.height !== undefined ? frameSlot.height : canvas.height;
+          hasSlotCoords = true;
+        }
+        
+        const slotCenterX = clipX + clipW / 2;
+        const slotCenterY = clipY + clipH / 2;
+        
+        // Draw the image with clipping mask
         ctx.save();
         
-        // Move to center to perform user-defined transformations
-        ctx.translate(canvas.width / 2 + slot.posX, canvas.height / 2 + slot.posY);
+        if (hasSlotCoords) {
+          ctx.beginPath();
+          ctx.rect(clipX, clipY, clipW, clipH);
+          ctx.clip();
+        }
+        
+        // Move to the slot's center + offset, then rotate & scale
+        ctx.translate(slotCenterX + slot.posX, slotCenterY + slot.posY);
         ctx.rotate(slot.rotateAngle);
         
         // Mirror horizontal scale if activated
@@ -1439,16 +1625,24 @@ document.addEventListener('DOMContentLoaded', () => {
         
         ctx.restore();
         
-        // If this slot is the active one AND the active tab is 'tab-adjust', draw a selection outline!
+        // If this slot is the active one AND the active tab is 'tab-adjust', draw outline aids!
         if (idx === activeSlotIndex && activeTabId === 'tab-adjust') {
+          // A. Draw a faint outline of the FULL photo boundaries (even cropped parts)
           ctx.save();
-          ctx.translate(canvas.width / 2 + slot.posX, canvas.height / 2 + slot.posY);
+          ctx.translate(slotCenterX + slot.posX, slotCenterY + slot.posY);
           ctx.rotate(slot.rotateAngle);
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 5]);
+          ctx.strokeRect(-slot.mediaWidth * slot.scale / 2, -slot.mediaHeight * slot.scale / 2, slot.mediaWidth * slot.scale, slot.mediaHeight * slot.scale);
+          ctx.restore();
           
+          // B. Draw a bright dashed blue border on the visible crop box (the slot itself)
+          ctx.save();
           ctx.strokeStyle = '#3b82f6';
           ctx.lineWidth = 4;
-          ctx.setLineDash([15, 10]);
-          ctx.strokeRect(-slot.mediaWidth * slot.scale / 2, -slot.mediaHeight * slot.scale / 2, slot.mediaWidth * slot.scale, slot.mediaHeight * slot.scale);
+          ctx.setLineDash([12, 8]);
+          ctx.strokeRect(clipX, clipY, clipW, clipH);
           ctx.restore();
         }
       }

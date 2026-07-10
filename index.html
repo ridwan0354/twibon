@@ -395,7 +395,115 @@
                   <input type="file" id="newFrameFileInput" accept="image/png" style="display: none;">
                   <span id="newFrameFileName" class="file-name-text">Belum ada file terpilih</span>
                 </div>
-                <button id="btnAdminSaveFrame" class="btn btn-primary btn-block"><i class="fa-solid fa-floppy-disk"></i> Simpan Bingkai</button>
+                
+                <!-- Live Layout Preview for Admin -->
+                <div id="adminLayoutPreviewContainer" style="display: none; width: 100%; position: relative; aspect-ratio: 1/1; background: #000; border: 1px solid var(--panel-border); border-radius: var(--radius-sm); overflow: hidden; margin-top: 10px;">
+                  <img id="adminPreviewImage" style="width: 100%; height: 100%; object-fit: contain; position: absolute; top:0; left:0; z-index: 1;" />
+                  <div id="adminPreviewSlotsOverlay" style="width: 100%; height: 100%; position: absolute; top:0; left:0; z-index: 2; pointer-events: none;"></div>
+                </div>
+
+                <!-- Slot Bounding Box Coordinates -->
+                <div id="adminSlotsConfigWrapper" style="margin-top: 16px; display: none; flex-direction: column; gap: 12px; border-top: 1px dashed var(--panel-border); padding-top: 16px;">
+                  <h5 style="font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Atur Posisi Area Foto (Skala 1080x1080)</h5>
+                  
+                  <div class="slot-coord-group" data-slot-idx="0" style="background: rgba(255,255,255,0.02); border: 1px solid var(--panel-border); padding: 10px; border-radius: 8px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:12px; font-weight:700; color: #60a5fa;">
+                      <span>Slot Foto 1 (Biru)</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-muted); display:block; margin-bottom:2px;">X</label>
+                        <input type="number" class="slot-x form-control" style="padding: 6px; font-size: 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--panel-border); color: var(--text-primary); width:100%; border-radius:4px;" value="0">
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-muted); display:block; margin-bottom:2px;">Y</label>
+                        <input type="number" class="slot-y form-control" style="padding: 6px; font-size: 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--panel-border); color: var(--text-primary); width:100%; border-radius:4px;" value="0">
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-muted); display:block; margin-bottom:2px;">Lebar</label>
+                        <input type="number" class="slot-w form-control" style="padding: 6px; font-size: 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--panel-border); color: var(--text-primary); width:100%; border-radius:4px;" value="1080">
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-muted); display:block; margin-bottom:2px;">Tinggi</label>
+                        <input type="number" class="slot-h form-control" style="padding: 6px; font-size: 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--panel-border); color: var(--text-primary); width:100%; border-radius:4px;" value="1080">
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="slot-coord-group" data-slot-idx="1" style="background: rgba(255,255,255,0.02); border: 1px solid var(--panel-border); padding: 10px; border-radius: 8px; display: none;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:12px; font-weight:700; color: #10b981;">
+                      <span>Slot Foto 2 (Hijau)</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-muted); display:block; margin-bottom:2px;">X</label>
+                        <input type="number" class="slot-x form-control" style="padding: 6px; font-size: 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--panel-border); color: var(--text-primary); width:100%; border-radius:4px;" value="0">
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-muted); display:block; margin-bottom:2px;">Y</label>
+                        <input type="number" class="slot-y form-control" style="padding: 6px; font-size: 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--panel-border); color: var(--text-primary); width:100%; border-radius:4px;" value="0">
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-muted); display:block; margin-bottom:2px;">Lebar</label>
+                        <input type="number" class="slot-w form-control" style="padding: 6px; font-size: 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--panel-border); color: var(--text-primary); width:100%; border-radius:4px;" value="1080">
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-muted); display:block; margin-bottom:2px;">Tinggi</label>
+                        <input type="number" class="slot-h form-control" style="padding: 6px; font-size: 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--panel-border); color: var(--text-primary); width:100%; border-radius:4px;" value="1080">
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="slot-coord-group" data-slot-idx="2" style="background: rgba(255,255,255,0.02); border: 1px solid var(--panel-border); padding: 10px; border-radius: 8px; display: none;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:12px; font-weight:700; color: #f59e0b;">
+                      <span>Slot Foto 3 (Oranye)</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-muted); display:block; margin-bottom:2px;">X</label>
+                        <input type="number" class="slot-x form-control" style="padding: 6px; font-size: 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--panel-border); color: var(--text-primary); width:100%; border-radius:4px;" value="0">
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-muted); display:block; margin-bottom:2px;">Y</label>
+                        <input type="number" class="slot-y form-control" style="padding: 6px; font-size: 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--panel-border); color: var(--text-primary); width:100%; border-radius:4px;" value="0">
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-muted); display:block; margin-bottom:2px;">Lebar</label>
+                        <input type="number" class="slot-w form-control" style="padding: 6px; font-size: 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--panel-border); color: var(--text-primary); width:100%; border-radius:4px;" value="1080">
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-muted); display:block; margin-bottom:2px;">Tinggi</label>
+                        <input type="number" class="slot-h form-control" style="padding: 6px; font-size: 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--panel-border); color: var(--text-primary); width:100%; border-radius:4px;" value="1080">
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="slot-coord-group" data-slot-idx="3" style="background: rgba(255,255,255,0.02); border: 1px solid var(--panel-border); padding: 10px; border-radius: 8px; display: none;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:12px; font-weight:700; color: #ef4444;">
+                      <span>Slot Foto 4 (Merah)</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-muted); display:block; margin-bottom:2px;">X</label>
+                        <input type="number" class="slot-x form-control" style="padding: 6px; font-size: 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--panel-border); color: var(--text-primary); width:100%; border-radius:4px;" value="0">
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-muted); display:block; margin-bottom:2px;">Y</label>
+                        <input type="number" class="slot-y form-control" style="padding: 6px; font-size: 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--panel-border); color: var(--text-primary); width:100%; border-radius:4px;" value="0">
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-muted); display:block; margin-bottom:2px;">Lebar</label>
+                        <input type="number" class="slot-w form-control" style="padding: 6px; font-size: 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--panel-border); color: var(--text-primary); width:100%; border-radius:4px;" value="1080">
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-muted); display:block; margin-bottom:2px;">Tinggi</label>
+                        <input type="number" class="slot-h form-control" style="padding: 6px; font-size: 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--panel-border); color: var(--text-primary); width:100%; border-radius:4px;" value="1080">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <button id="btnAdminSaveFrame" class="btn btn-primary btn-block" style="margin-top:14px;"><i class="fa-solid fa-floppy-disk"></i> Simpan Bingkai</button>
               </div>
             </div>
           </div>

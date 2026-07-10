@@ -28,7 +28,14 @@ function read_frames() {
                 "name" => "CAI Lombok 2026",
                 "src" => "twibonze CAI26 (1).png",
                 "order" => 0,
-                "isDefault" => true
+                "isDefault" => true,
+                "slots_count" => 4,
+                "slots" => [
+                    ["x" => 92, "y" => 153, "width" => 896, "height" => 413],
+                    ["x" => 92, "y" => 582, "width" => 442, "height" => 498],
+                    ["x" => 546, "y" => 582, "width" => 442, "height" => 243],
+                    ["x" => 546, "y" => 837, "width" => 442, "height" => 243]
+                ]
             ]
         ];
         file_put_contents($db_file, json_encode($initial, JSON_PRETTY_PRINT));
