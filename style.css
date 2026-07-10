@@ -507,6 +507,88 @@ body {
 }
 
 /* TAB 2: MEDIA INPUTS */
+.photo-slots-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: inset 0 0 15px rgba(255, 255, 255, 0.01);
+  margin-bottom: 8px;
+}
+
+.slots-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.slots-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.slot-btn {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 10px 4px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  transition: var(--transition);
+  outline: none;
+}
+
+.slot-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--text-primary);
+  transform: translateY(-2px);
+}
+
+.slot-btn.active {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.2);
+}
+
+.slot-thumb {
+  width: 44px;
+  height: 44px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 16px;
+  transition: var(--transition);
+}
+
+.slot-btn.active .slot-thumb {
+  border-color: var(--primary-color);
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.slot-name-label {
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .media-source-cards {
   display: grid;
   grid-template-columns: 1fr 1fr;

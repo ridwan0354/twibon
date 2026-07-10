@@ -111,6 +111,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const DB_NAME = 'TwibbonAppDB';
   const DB_VERSION = 1;
   const STORE_NAME = 'frames';
+
+  // Multiple Slots Configuration
+  const slots = [
+    { mediaType: null, mediaElement: null, mediaWidth: 0, mediaHeight: 0, posX: 0, posY: 0, scale: 1.0, rotateAngle: 0, flipHorizontal: false, name: '', typeLabel: '' },
+    { mediaType: null, mediaElement: null, mediaWidth: 0, mediaHeight: 0, posX: 0, posY: 0, scale: 1.0, rotateAngle: 0, flipHorizontal: false, name: '', typeLabel: '' },
+    { mediaType: null, mediaElement: null, mediaWidth: 0, mediaHeight: 0, posX: 0, posY: 0, scale: 1.0, rotateAngle: 0, flipHorizontal: false, name: '', typeLabel: '' },
+    { mediaType: null, mediaElement: null, mediaWidth: 0, mediaHeight: 0, posX: 0, posY: 0, scale: 1.0, rotateAngle: 0, flipHorizontal: false, name: '', typeLabel: '' }
+  ];
+  let activeSlotIndex = 0;
+  let activeTabId = 'tab-media';
   
   let mediaType = null; // 'image' | 'video' | 'camera'
   let cameraFacingMode = 'user'; // 'user' (front camera) or 'environment' (back camera)
@@ -570,6 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
     await renderEditorFrameSelector();
     
     resetMediaTransformations();
+    updateSlotThumbnails();
     startCanvasLoop();
     
     // Show start screen selector modal
@@ -586,6 +597,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Toggle contents
         const targetTab = btn.getAttribute('data-tab');
+        activeTabId = targetTab;
         tabContents.forEach(content => {
           content.classList.remove('active');
           if (content.id === targetTab) {
@@ -606,6 +618,9 @@ document.addEventListener('DOMContentLoaded', () => {
             adminLoginError.style.display = 'none';
           }
         }
+
+        // Redraw to show/hide selection dashed border!
+        draw();
       });
     });
   }
@@ -769,6 +784,98 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnAdminSaveFrame) {
       btnAdminSaveFrame.addEventListener('click', handleAdminSaveFrame);
     }
+
+    // Slot selector buttons
+    document.querySelectorAll('.slot-btn').forEach((btn, idx) => {
+      btn.addEventListener('click', () => {
+        loadActiveSlotState(idx);
+      });
+    });
+  }
+
+  // --- SLOT MANAGEMENT HELPERS ---
+  function saveActiveSlotState() {
+    const slot = slots[activeSlotIndex];
+    if (!slot) return;
+    slot.mediaType = mediaType;
+    slot.mediaElement = mediaElement;
+    slot.mediaWidth = mediaWidth;
+    slot.mediaHeight = mediaHeight;
+    slot.posX = posX;
+    slot.posY = posY;
+    slot.scale = scale;
+    slot.rotateAngle = rotateAngle;
+    slot.flipHorizontal = flipHorizontal;
+  }
+
+  function loadActiveSlotState(index) {
+    // First save current active slot state
+    saveActiveSlotState();
+    
+    // Set the new slot index
+    activeSlotIndex = index;
+    
+    // Load state from slot
+    const slot = slots[activeSlotIndex];
+    mediaType = slot.mediaType;
+    mediaElement = slot.mediaElement;
+    mediaWidth = slot.mediaWidth;
+    mediaHeight = slot.mediaHeight;
+    posX = slot.posX;
+    posY = slot.posY;
+    scale = slot.scale;
+    rotateAngle = slot.rotateAngle;
+    flipHorizontal = slot.flipHorizontal;
+    
+    // Update UI controls
+    sliderScale.value = scale;
+    valScale.textContent = Math.round(scale * 100) + '%';
+    if (quickSliderScale) {
+      quickSliderScale.value = scale;
+      quickValScale.textContent = Math.round(scale * 100) + '%';
+    }
+    const deg = Math.round(rotateAngle * 180 / Math.PI);
+    sliderRotate.value = deg;
+    valRotate.textContent = deg + '°';
+    
+    if (mediaElement) {
+      showActiveMediaBadge(slot.name, slot.typeLabel);
+      showQuickPanels();
+    } else {
+      activeMediaCard.style.display = 'none';
+      hideQuickPanels();
+    }
+    
+    // Update active slot button highlight
+    document.querySelectorAll('.slot-btn').forEach((btn, idx) => {
+      if (idx === activeSlotIndex) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+    
+    draw();
+  }
+
+  function updateSlotThumbnails() {
+    slots.forEach((slot, idx) => {
+      const btn = document.querySelector(`.slot-btn[data-slot="${idx}"]`);
+      if (btn) {
+        const thumb = btn.querySelector('.slot-thumb');
+        if (slot.mediaElement) {
+          if (slot.mediaType === 'image') {
+            thumb.innerHTML = `<img src="${slot.mediaElement.src}" style="width:100%; height:100%; object-fit:cover; border-radius:6px;" />`;
+          } else if (slot.mediaType === 'video') {
+            thumb.innerHTML = `<i class="fa-solid fa-video text-success" style="font-size:18px;"></i>`;
+          } else if (slot.mediaType === 'camera') {
+            thumb.innerHTML = `<i class="fa-solid fa-camera text-success" style="font-size:18px;"></i>`;
+          }
+        } else {
+          thumb.innerHTML = `<i class="fa-solid fa-image"></i>`;
+        }
+      }
+    });
   }
 
   // --- TRANSFORMATION MANAGEMENT ---
@@ -883,9 +990,17 @@ document.addEventListener('DOMContentLoaded', () => {
         mediaWidth = img.naturalWidth;
         mediaHeight = img.naturalHeight;
         
+        slots[activeSlotIndex].mediaType = 'image';
+        slots[activeSlotIndex].mediaElement = img;
+        slots[activeSlotIndex].mediaWidth = img.naturalWidth;
+        slots[activeSlotIndex].mediaHeight = img.naturalHeight;
+        slots[activeSlotIndex].name = file.name;
+        slots[activeSlotIndex].typeLabel = 'FOTO';
+        
         showActiveMediaBadge(file.name, 'FOTO');
         resetMediaTransformations();
         showQuickPanels();
+        updateSlotThumbnails();
         
         // Direct to adjustment tab
         document.querySelector('.tab-btn[data-tab="tab-adjust"]').click();
@@ -894,18 +1009,32 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (file.type.startsWith('video/')) {
       mediaType = 'video';
       
-      sourceVideo.src = URL.createObjectURL(file);
-      sourceVideo.load();
-      sourceVideo.onloadedmetadata = () => {
-        mediaElement = sourceVideo;
-        mediaWidth = sourceVideo.videoWidth;
-        mediaHeight = sourceVideo.videoHeight;
+      const slotVideo = document.createElement('video');
+      slotVideo.style.display = 'none';
+      slotVideo.loop = true;
+      slotVideo.crossOrigin = 'anonymous';
+      slotVideo.playsInline = true;
+      slotVideo.muted = true;
+      slotVideo.src = URL.createObjectURL(file);
+      slotVideo.load();
+      slotVideo.onloadedmetadata = () => {
+        mediaElement = slotVideo;
+        mediaWidth = slotVideo.videoWidth;
+        mediaHeight = slotVideo.videoHeight;
+        
+        slots[activeSlotIndex].mediaType = 'video';
+        slots[activeSlotIndex].mediaElement = slotVideo;
+        slots[activeSlotIndex].mediaWidth = slotVideo.videoWidth;
+        slots[activeSlotIndex].mediaHeight = slotVideo.videoHeight;
+        slots[activeSlotIndex].name = file.name;
+        slots[activeSlotIndex].typeLabel = 'VIDEO';
         
         showActiveMediaBadge(file.name, 'VIDEO');
         resetMediaTransformations();
         showQuickPanels();
+        updateSlotThumbnails();
         
-        sourceVideo.play().catch(err => console.log('Autoplay blocked:', err));
+        slotVideo.play().catch(err => console.log('Autoplay blocked:', err));
         
         document.querySelector('.tab-btn[data-tab="tab-adjust"]').click();
       };
@@ -926,14 +1055,31 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function removeActiveMedia() {
+    if (mediaType === 'video' && mediaElement) {
+      mediaElement.pause();
+      mediaElement.src = '';
+    }
+    
     mediaType = null;
     mediaElement = null;
-    sourceVideo.pause();
-    sourceVideo.src = '';
+    mediaWidth = 0;
+    mediaHeight = 0;
+    
+    const slot = slots[activeSlotIndex];
+    if (slot) {
+      slot.mediaType = null;
+      slot.mediaElement = null;
+      slot.mediaWidth = 0;
+      slot.mediaHeight = 0;
+      slot.name = '';
+      slot.typeLabel = '';
+    }
+    
     activeMediaCard.style.display = 'none';
     fileMediaInput.value = '';
     resetMediaTransformations();
     hideQuickPanels();
+    updateSlotThumbnails();
   }
 
   // --- CAMERA HANDLING ---
@@ -965,9 +1111,18 @@ document.addEventListener('DOMContentLoaded', () => {
         mediaHeight = cameraVideo.videoHeight || 1080;
         flipHorizontal = (cameraFacingMode === 'user'); // Mirror only for front camera
         
+        slots[activeSlotIndex].mediaType = 'camera';
+        slots[activeSlotIndex].mediaElement = cameraVideo;
+        slots[activeSlotIndex].mediaWidth = cameraVideo.videoWidth || 1080;
+        slots[activeSlotIndex].mediaHeight = cameraVideo.videoHeight || 1080;
+        slots[activeSlotIndex].name = 'Kamera Langsung';
+        slots[activeSlotIndex].typeLabel = 'KAMERA';
+        slots[activeSlotIndex].flipHorizontal = flipHorizontal;
+        
         resetMediaTransformations();
         if (quickAdjustPanel) quickAdjustPanel.style.display = 'block';
         if (quickCameraControls) quickCameraControls.style.display = 'block';
+        updateSlotThumbnails();
       };
     } catch (err) {
       console.error('Kamera gagal diakses:', err);
@@ -985,9 +1140,19 @@ document.addEventListener('DOMContentLoaded', () => {
           mediaWidth = cameraVideo.videoWidth || 640; 
           mediaHeight = cameraVideo.videoHeight || 480;
           flipHorizontal = (cameraFacingMode === 'user'); // Mirror only for front camera
+          
+          slots[activeSlotIndex].mediaType = 'camera';
+          slots[activeSlotIndex].mediaElement = cameraVideo;
+          slots[activeSlotIndex].mediaWidth = cameraVideo.videoWidth || 640;
+          slots[activeSlotIndex].mediaHeight = cameraVideo.videoHeight || 480;
+          slots[activeSlotIndex].name = 'Kamera Langsung';
+          slots[activeSlotIndex].typeLabel = 'KAMERA';
+          slots[activeSlotIndex].flipHorizontal = flipHorizontal;
+          
           resetMediaTransformations();
           if (quickAdjustPanel) quickAdjustPanel.style.display = 'block';
           if (quickCameraControls) quickCameraControls.style.display = 'block';
+          updateSlotThumbnails();
         };
       } catch (innerErr) {
         alert('Gagal mengakses kamera. Mohon berikan izin kamera atau gunakan file galeri.');
@@ -1058,9 +1223,18 @@ document.addEventListener('DOMContentLoaded', () => {
       mediaHeight = capturedImg.height;
       flipHorizontal = false; // Mirroring was already baked in above
       
-      showActiveMediaBadge('foto-kamera-' + Date.now() + '.jpg', 'FOTO');
+      const fileName = 'foto-kamera-' + Date.now() + '.jpg';
+      slots[activeSlotIndex].mediaType = 'image';
+      slots[activeSlotIndex].mediaElement = capturedImg;
+      slots[activeSlotIndex].mediaWidth = capturedImg.width;
+      slots[activeSlotIndex].mediaHeight = capturedImg.height;
+      slots[activeSlotIndex].name = fileName;
+      slots[activeSlotIndex].typeLabel = 'FOTO';
+      
+      showActiveMediaBadge(fileName, 'FOTO');
       resetMediaTransformations();
       showQuickPanels();
+      updateSlotThumbnails();
       
       // Close the stream
       closeCamera();
@@ -1145,29 +1319,47 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.fillStyle = '#050714'; // Matching brand theme background
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // 2. Draw user media behind the frame
-    if (mediaElement) {
-      ctx.save();
-      
-      // Move to center to perform user-defined transformations
-      ctx.translate(canvas.width / 2 + posX, canvas.height / 2 + posY);
-      ctx.rotate(rotateAngle);
-      
-      // Mirror horizontal scale if activated
-      const currentScaleX = flipHorizontal ? -scale : scale;
-      ctx.scale(currentScaleX, scale);
-      
-      // Draw centered around origin
-      ctx.drawImage(
-        mediaElement, 
-        -mediaWidth / 2, 
-        -mediaHeight / 2, 
-        mediaWidth, 
-        mediaHeight
-      );
-      
-      ctx.restore();
-    }
+    // Auto-save the active slot state before rendering all
+    saveActiveSlotState();
+    
+    // 2. Draw all slot media in order
+    slots.forEach((slot, idx) => {
+      if (slot.mediaElement) {
+        ctx.save();
+        
+        // Move to center to perform user-defined transformations
+        ctx.translate(canvas.width / 2 + slot.posX, canvas.height / 2 + slot.posY);
+        ctx.rotate(slot.rotateAngle);
+        
+        // Mirror horizontal scale if activated
+        const currentScaleX = slot.flipHorizontal ? -slot.scale : slot.scale;
+        ctx.scale(currentScaleX, slot.scale);
+        
+        // Draw centered around origin
+        ctx.drawImage(
+          slot.mediaElement, 
+          -slot.mediaWidth / 2, 
+          -slot.mediaHeight / 2, 
+          slot.mediaWidth, 
+          slot.mediaHeight
+        );
+        
+        ctx.restore();
+        
+        // If this slot is the active one AND the active tab is 'tab-adjust', draw a selection outline!
+        if (idx === activeSlotIndex && activeTabId === 'tab-adjust') {
+          ctx.save();
+          ctx.translate(canvas.width / 2 + slot.posX, canvas.height / 2 + slot.posY);
+          ctx.rotate(slot.rotateAngle);
+          
+          ctx.strokeStyle = '#3b82f6';
+          ctx.lineWidth = 4;
+          ctx.setLineDash([15, 10]);
+          ctx.strokeRect(-slot.mediaWidth * slot.scale / 2, -slot.mediaHeight * slot.scale / 2, slot.mediaWidth * slot.scale, slot.mediaHeight * slot.scale);
+          ctx.restore();
+        }
+      }
+    });
     
     // 3. Draw frame OVER the media
     if (frameImage.complete && frameImage.naturalWidth > 0) {
@@ -1178,9 +1370,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // Canvas loop rendering for videos and live cameras
   function startCanvasLoop() {
     function loop() {
-      if (mediaType === 'video' && !sourceVideo.paused) {
-        draw();
-      } else if (mediaType === 'camera') {
+      let needsRedraw = false;
+      slots.forEach(slot => {
+        if (slot.mediaType === 'video' && slot.mediaElement && !slot.mediaElement.paused) {
+          needsRedraw = true;
+        } else if (slot.mediaType === 'camera') {
+          needsRedraw = true;
+        }
+      });
+      
+      if (needsRedraw) {
         draw();
       }
       requestAnimationFrame(loop);
@@ -1204,15 +1403,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // Audio merging: grab audio track from source if available
     let sourceAudioTrack = null;
     
-    if (mediaType === 'video') {
-      // Fetch audio track from uploaded video file
-      const stream = sourceVideo.captureStream ? sourceVideo.captureStream() : sourceVideo.mozCaptureStream();
+    // Find the first video slot that has media
+    const videoSlot = slots.find(s => s.mediaType === 'video' && s.mediaElement);
+    if (videoSlot) {
+      const vEl = videoSlot.mediaElement;
+      const stream = vEl.captureStream ? vEl.captureStream() : vEl.mozCaptureStream();
       if (stream && stream.getAudioTracks().length > 0) {
         sourceAudioTrack = stream.getAudioTracks()[0];
       }
-    } else if (mediaType === 'camera' && cameraStream) {
-      // Fetch live audio track from microphone stream
-      if (cameraStream.getAudioTracks().length > 0) {
+    } else {
+      // Fallback to camera
+      const cameraSlot = slots.find(s => s.mediaType === 'camera' && s.mediaElement);
+      if (cameraSlot && cameraStream && cameraStream.getAudioTracks().length > 0) {
         sourceAudioTrack = cameraStream.getAudioTracks()[0];
       }
     }
@@ -1336,12 +1538,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- EXPORT TRIGGERS (DOWNLOAD & SHARE) ---
   async function exportMedia() {
-    if (!mediaElement) {
+    const hasMedia = slots.some(s => s.mediaElement);
+    if (!hasMedia) {
       alert('Unggah foto/video atau gunakan kamera terlebih dahulu!');
       return;
     }
     
-    if (mediaType === 'image') {
+    const hasVideo = slots.some(s => s.mediaType === 'video' || s.mediaType === 'camera');
+    
+    if (!hasVideo) {
       // Photo export is direct
       try {
         const dataUrl = canvas.toDataURL('image/png');
@@ -1353,10 +1558,25 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('Gagal mengekspor foto. Hubungi administrator.');
         console.error(err);
       }
-    } else if (mediaType === 'video') {
+    } else {
       // Video export requires rendering/recording loop
       if (isRecording) {
         alert('Video sedang dalam proses perekaman!');
+        return;
+      }
+      
+      const videoSlot = slots.find(s => s.mediaType === 'video' && s.mediaElement);
+      
+      if (!videoSlot) {
+        // If it's only camera, we export the recorded camera blob (which was saved on stop recording)
+        if (window.lastExportedUrl && window.lastExportedBlob) {
+          const link = document.createElement('a');
+          link.download = window.lastExportedName;
+          link.href = window.lastExportedUrl;
+          link.click();
+        } else {
+          alert('Silakan ambil foto atau rekam video terlebih dahulu sebelum mengunduh hasil!');
+        }
         return;
       }
       
@@ -1364,14 +1584,20 @@ document.addEventListener('DOMContentLoaded', () => {
       exportProgressBar.style.width = '0%';
       exportStatusText.textContent = 'Mulai memproses video...';
       
-      // Reset play state
-      sourceVideo.currentTime = 0;
-      sourceVideo.pause();
+      // Pause all videos and reset currentTime to 0
+      slots.forEach(s => {
+        if (s.mediaType === 'video' && s.mediaElement) {
+          s.mediaElement.currentTime = 0;
+          s.mediaElement.pause();
+        }
+      });
       
-      // Create progress reporter
-      const duration = sourceVideo.duration;
+      // Track duration using the first video
+      const vEl = videoSlot.mediaElement;
+      const duration = vEl.duration;
+      
       let progressInterval = setInterval(() => {
-        const pct = (sourceVideo.currentTime / duration) * 100;
+        const pct = (vEl.currentTime / duration) * 100;
         exportProgressBar.style.width = `${Math.min(pct, 98)}%`;
         exportStatusText.textContent = `Memproses video: ${Math.round(pct)}%`;
       }, 250);
@@ -1379,12 +1605,16 @@ document.addEventListener('DOMContentLoaded', () => {
       // Start recording frame sequence
       startCanvasRecording();
       
-      // Trigger source video play
+      // Trigger all videos to play
       try {
-        await sourceVideo.play();
+        const playPromises = slots
+          .filter(s => s.mediaType === 'video' && s.mediaElement)
+          .map(s => s.mediaElement.play());
         
-        // Set event hook to stop recording when video ends
-        sourceVideo.onended = () => {
+        await Promise.all(playPromises);
+        
+        // Set event hook to stop recording when the main video ends
+        vEl.onended = () => {
           clearInterval(progressInterval);
           exportProgressBar.style.width = '100%';
           exportStatusText.textContent = 'Menyelesaikan ekspor...';
@@ -1395,40 +1625,30 @@ document.addEventListener('DOMContentLoaded', () => {
         exportStatusPanel.style.display = 'none';
         alert('Gagal memutar video untuk render canvas.');
       }
-    } else if (mediaType === 'camera') {
-      if (window.lastExportedUrl && window.lastExportedBlob) {
-        const link = document.createElement('a');
-        link.download = window.lastExportedName;
-        link.href = window.lastExportedUrl;
-        link.click();
-      } else {
-        alert('Silakan ambil foto atau rekam video terlebih dahulu sebelum mengunduh hasil!');
-      }
     }
   }
 
   async function shareMedia() {
-    if (!mediaElement) {
+    const hasMedia = slots.some(s => s.mediaElement);
+    if (!hasMedia) {
       alert('Silakan masukkan media terlebih dahulu!');
       return;
     }
     
     let fileToShare = null;
+    const hasVideo = slots.some(s => s.mediaType === 'video' || s.mediaType === 'camera');
     
-    if (mediaType === 'image') {
+    if (!hasVideo) {
       // Convert canvas to blob
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
       fileToShare = new File([blob], `twibbon-cai-${Date.now()}.png`, { type: 'image/png' });
-    } else if (mediaType === 'video' || window.lastExportedBlob) {
+    } else if (hasVideo || window.lastExportedBlob) {
       if (window.lastExportedBlob) {
         fileToShare = new File([window.lastExportedBlob], window.lastExportedName, { type: window.lastExportedBlob.type });
       } else {
         alert('Silakan klik "Download Hasil" terlebih dahulu untuk mengekspor video sebelum dibagikan.');
         return;
       }
-    } else if (mediaType === 'camera') {
-      alert('Silakan ambil foto atau rekam video terlebih dahulu sebelum membagikan hasil!');
-      return;
     }
     
     if (!fileToShare) return;
