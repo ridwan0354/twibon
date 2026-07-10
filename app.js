@@ -135,10 +135,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let rotateAngle = 0; // In radians
   let flipHorizontal = false;
   
-  // Interactive Drag State
+  // Interactive Drag & Touch Pinch Zoom State
   let isDragging = false;
   let startX = 0;
   let startY = 0;
+  let startTouchDistance = 0;
+  let startTouchScale = 1.0;
   
   // Camera State
   let cameraStream = null;
@@ -1327,6 +1329,17 @@ document.addEventListener('DOMContentLoaded', () => {
     isDragging = true;
     overlayInstruction.style.opacity = '0';
     
+    // Check if it is a dual touch (pinch to zoom)
+    if (e.touches && e.touches.length === 2) {
+      startTouchDistance = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      startTouchScale = scale;
+      if (e.cancelable) e.preventDefault();
+      return;
+    }
+    
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     
@@ -1342,6 +1355,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function drag(e) {
     if (!isDragging || !mediaElement) return;
+    
+    // Check if it is a dual touch (pinch to zoom)
+    if (e.touches && e.touches.length === 2) {
+      if (startTouchDistance > 0) {
+        const currentDistance = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const ratio = currentDistance / startTouchDistance;
+        // Limit scale between 0.1 and 3.0
+        scale = Math.min(3, Math.max(0.1, startTouchScale * ratio));
+        
+        // Sync sliders and display values
+        sliderScale.value = scale;
+        valScale.textContent = Math.round(scale * 100) + '%';
+        if (quickSliderScale) {
+          quickSliderScale.value = scale;
+          quickValScale.textContent = Math.round(scale * 100) + '%';
+        }
+        
+        draw();
+      }
+      if (e.cancelable) e.preventDefault();
+      return;
+    }
+    
+    // Ignore single touch drag updates if the user is in pinch mode
+    if (e.touches && e.touches.length !== 1) {
+      return;
+    }
     
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -1359,6 +1402,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function endDrag() {
     isDragging = false;
+    startTouchDistance = 0;
   }
 
   // --- DRAW ROUTINE ---
