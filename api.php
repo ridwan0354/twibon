@@ -257,6 +257,42 @@ if ($method === 'POST') {
         exit();
     }
     
+    // Edit Google Drive Settings for Existing Frame
+    if ($action === 'edit_gdrive') {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $id = isset($input['id']) ? trim($input['id']) : (isset($_POST['id']) ? trim($_POST['id']) : '');
+        
+        if (empty($id)) {
+            http_response_code(400);
+            echo json_encode(["error" => "Frame ID is required."]);
+            exit();
+        }
+        
+        $gdrive_folder_id = isset($input['gdrive_folder_id']) ? trim($input['gdrive_folder_id']) : (isset($_POST['gdrive_folder_id']) ? trim($_POST['gdrive_folder_id']) : '');
+        $gdrive_script_url = isset($input['gdrive_script_url']) ? trim($input['gdrive_script_url']) : (isset($_POST['gdrive_script_url']) ? trim($_POST['gdrive_script_url']) : '');
+        
+        $frames = read_frames();
+        $found = false;
+        
+        foreach ($frames as &$frame) {
+            if ($frame['id'] === $id) {
+                $frame['gdrive_folder_id'] = $gdrive_folder_id;
+                $frame['gdrive_script_url'] = $gdrive_script_url;
+                $found = true;
+                break;
+            }
+        }
+        
+        if ($found) {
+            write_frames($frames);
+            echo json_encode(["success" => true]);
+        } else {
+            http_response_code(404);
+            echo json_encode(["error" => "Frame not found."]);
+        }
+        exit();
+    }
+
     // Reorder Frames
     if ($action === 'reorder') {
         $input = json_decode(file_get_contents('php://input'), true);

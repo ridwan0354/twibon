@@ -111,6 +111,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const gdriveError = document.getElementById('gdriveError');
   const gdriveErrorMessage = document.getElementById('gdriveErrorMessage');
   const gdrivePhotoGrid = document.getElementById('gdrivePhotoGrid');
+  const gdriveEditModal = document.getElementById('gdriveEditModal');
+  const btnCloseGDriveEdit = document.getElementById('btnCloseGDriveEdit');
+  const editGDriveFrameId = document.getElementById('editGDriveFrameId');
+  const editGDriveFolderId = document.getElementById('editGDriveFolderId');
+  const editGDriveScriptUrl = document.getElementById('editGDriveScriptUrl');
+  const btnSaveGDriveEdit = document.getElementById('btnSaveGDriveEdit');
 
   // --- STATE ---
   let frameImage = new Image();
@@ -553,6 +559,9 @@ document.addEventListener('DOMContentLoaded', () => {
         <img src="${frame.src}" alt="${frame.name}">
         <span class="frame-name">${frame.name}</span>
         <div class="actions">
+          <button class="btn-action btn-edit-gdrive" title="Edit Google Drive Setting" style="color: #10b981; margin-right: 4px;">
+            <i class="fa-brands fa-google-drive"></i>
+          </button>
           <button class="btn-action btn-move-up" title="Pindahkan Ke Atas" ${idx === 0 ? 'disabled style="opacity: 0.3;"' : ''}>
             <i class="fa-solid fa-arrow-up"></i>
           </button>
@@ -565,10 +574,21 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `;
       
+      const btnEditGDrive = item.querySelector('.btn-edit-gdrive');
       const btnUp = item.querySelector('.btn-move-up');
       const btnDown = item.querySelector('.btn-move-down');
       const btnDel = item.querySelector('.btn-delete');
       
+      btnEditGDrive.addEventListener('click', () => {
+        editGDriveFrameId.value = frame.id;
+        editGDriveFolderId.value = frame.gdrive_folder_id || '';
+        
+        const savedScriptUrl = localStorage.getItem('last_gdrive_script_url') || '';
+        editGDriveScriptUrl.value = frame.gdrive_script_url || savedScriptUrl;
+        
+        gdriveEditModal.classList.remove('hidden');
+      });
+
       if (idx > 0) {
         btnUp.addEventListener('click', () => moveFrameOrder(frame.id, -1));
       }
@@ -1241,6 +1261,63 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnCloseGDriveSelector) {
       btnCloseGDriveSelector.addEventListener('click', () => {
         gdriveSelectorModal.classList.add('hidden');
+      });
+    }
+
+    if (btnCloseGDriveEdit) {
+      btnCloseGDriveEdit.addEventListener('click', () => {
+        gdriveEditModal.classList.add('hidden');
+      });
+    }
+    if (btnSaveGDriveEdit) {
+      btnSaveGDriveEdit.addEventListener('click', async () => {
+        const frameId = editGDriveFrameId.value;
+        const folderId = editGDriveFolderId.value.trim();
+        const scriptUrl = editGDriveScriptUrl.value.trim();
+        
+        if (scriptUrl) {
+          localStorage.setItem('last_gdrive_script_url', scriptUrl);
+        }
+        
+        try {
+          const response = await fetch('api.php?action=edit_gdrive', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              id: frameId,
+              gdrive_folder_id: folderId,
+              gdrive_script_url: scriptUrl,
+              password: '354313'
+            })
+          });
+          const data = await response.json();
+          if (response.ok && data.success) {
+            alert('Pengaturan Google Drive berhasil disimpan!');
+            gdriveEditModal.classList.add('hidden');
+            
+            await renderAdminFrameList();
+            const frames = await getAllFrames();
+            if (activeFrame && activeFrame.id === frameId) {
+              const updated = frames.find(f => f.id === frameId);
+              if (updated) {
+                activeFrame = updated;
+                if (activeFrame.gdrive_folder_id && activeFrame.gdrive_script_url) {
+                  gdriveCard.style.display = 'flex';
+                } else {
+                  gdriveCard.style.display = 'none';
+                }
+              }
+            }
+            await renderEditorFrameSelector();
+          } else {
+            alert('Gagal menyimpan pengaturan: ' + (data.error || 'Terjadi kesalahan.'));
+          }
+        } catch (err) {
+          console.error(err);
+          alert('Gagal menghubungkan ke server.');
+        }
       });
     }
 

@@ -612,6 +612,31 @@
       </div>
     </div>
 
+    <!-- Modal Edit Google Drive Settings -->
+    <div id="gdriveEditModal" class="modal-overlay hidden" style="z-index: 1003;">
+      <div class="modal-card" style="max-width: 450px;">
+        <div class="modal-header" style="position: relative; display: flex; justify-content: space-between; align-items: center; text-align: left; padding: 20px 24px;">
+          <h2 style="font-size: 18px; margin: 0; background: linear-gradient(to right, #10b981, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"><i class="fa-brands fa-google-drive" style="-webkit-text-fill-color: initial;"></i> Edit Google Drive Setting</h2>
+          <button id="btnCloseGDriveEdit" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 20px; padding: 4px;"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+          <input type="hidden" id="editGDriveFrameId">
+          
+          <div class="form-group">
+            <label style="display: block; margin-bottom: 6px; font-size: 13px; color: var(--text-muted); font-weight: 600;">ID Folder Google Drive:</label>
+            <input type="text" id="editGDriveFolderId" placeholder="Contoh: 17691tD48Q1x4nO0Yk5s..." class="form-control" style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--panel-border); color: var(--text-primary); border-radius: var(--radius-sm); padding: 10px; width: 100%; font-size: 13px; outline: none; box-sizing: border-box;">
+          </div>
+          
+          <div class="form-group">
+            <label style="display: block; margin-bottom: 6px; font-size: 13px; color: var(--text-muted); font-weight: 600;">URL Web App Google Apps Script:</label>
+            <input type="text" id="editGDriveScriptUrl" placeholder="Contoh: https://script.google.com/macros/s/.../exec" class="form-control" style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--panel-border); color: var(--text-primary); border-radius: var(--radius-sm); padding: 10px; width: 100%; font-size: 13px; outline: none; box-sizing: border-box;">
+          </div>
+          
+          <button id="btnSaveGDriveEdit" class="btn btn-primary btn-block" style="margin-top: 8px;"><i class="fa-solid fa-floppy-disk"></i> Simpan Pengaturan G Drive</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Hidden Video Element for handling uploaded videos -->
     <video id="sourceVideo" style="display:none;" loop crossorigin="anonymous" playsinline muted></video>
 
@@ -622,6 +647,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=1.3.0"></script>
+  <script src="app.js?v=1.3.5"></script>
 </body>
 </html>
