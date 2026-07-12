@@ -196,6 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let mediaRecorder = null;
   let recordedChunks = [];
   let isRecording = false;
+  let isExporting = false; // suppresses guide lines during canvas export
   let recordStartTime = 0;
   let recordTimerInterval = null;
   
@@ -2288,8 +2289,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         ctx.restore();
         
-        // If this slot is the active one AND user is adjusting (tab-adjust OR tab-media), draw outline aids!
-        if (idx === activeSlotIndex && (activeTabId === 'tab-adjust' || activeTabId === 'tab-media')) {
+        // Draw outline aids ONLY during editing (never during export)
+        if (idx === activeSlotIndex && (activeTabId === 'tab-adjust' || activeTabId === 'tab-media') && !isExporting) {
           // A. Draw a faint outline of the FULL photo boundaries (even cropped parts)
           ctx.save();
           ctx.translate(slotCenterX + slot.posX, slotCenterY + slot.posY);
@@ -2497,14 +2498,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const hasVideo = slots.some(s => s.mediaType === 'video' || s.mediaType === 'camera');
     
     if (!hasVideo) {
-      // Photo export is direct
+      // Photo export — redraw clean (no guides) then export
       try {
+        isExporting = true;
+        draw(); // clean redraw without guides
         const dataUrl = canvas.toDataURL('image/png');
+        isExporting = false;
+        draw(); // restore guides
         const link = document.createElement('a');
         link.download = `twibbon-cai-${Date.now()}.png`;
         link.href = dataUrl;
         link.click();
       } catch (err) {
+        isExporting = false;
+        draw();
         alert('Gagal mengekspor foto. Hubungi administrator.');
         console.error(err);
       }
@@ -2589,8 +2596,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const hasVideo = slots.some(s => s.mediaType === 'video' || s.mediaType === 'camera');
     
     if (!hasVideo) {
-      // Convert canvas to blob
+      // Convert canvas to blob — clean render without guides
+      isExporting = true;
+      draw();
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      isExporting = false;
+      draw(); // restore guides
       fileToShare = new File([blob], `twibbon-cai-${Date.now()}.png`, { type: 'image/png' });
     } else if (hasVideo || window.lastExportedBlob) {
       if (window.lastExportedBlob) {
