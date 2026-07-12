@@ -405,8 +405,10 @@ document.addEventListener('DOMContentLoaded', () => {
     updateSlotsVisibility(slotsCount);
     recalculateAllSlotsFitScale();
 
-    // Show or hide GDrive card depending on active frame properties
-    if (frame.gdrive_folder_id && frame.gdrive_script_url) {
+    // Show or hide GDrive card depending on active frame properties or global configuration
+    const hasLocal = frame.gdrive_folder_id && frame.gdrive_script_url;
+    const hasGlobal = globalConfig && globalConfig.gdrive_folder_id && globalConfig.gdrive_script_url;
+    if (hasLocal || hasGlobal) {
       gdriveCard.style.display = 'flex';
     } else {
       gdriveCard.style.display = 'none';
@@ -1019,6 +1021,21 @@ document.addEventListener('DOMContentLoaded', () => {
     setupTabNavigation();
     setupEventListeners();
     
+    // Load global GDrive config first so it's loaded before we select a frame
+    try {
+      const configRes = await fetch('api.php?action=get_config');
+      const configData = await configRes.json();
+      globalConfig = configData;
+      if (globalGDriveFolderId) globalGDriveFolderId.value = configData.gdrive_folder_id || '';
+      if (globalGDriveScriptUrl) globalGDriveScriptUrl.value = configData.gdrive_script_url || '';
+      if (globalGdriveStatus) {
+        globalGdriveStatus.textContent = configData.gdrive_folder_id ? '✅ Aktif' : 'Belum disetel';
+        globalGdriveStatus.style.color = configData.gdrive_folder_id ? '#34d399' : 'var(--text-muted)';
+      }
+    } catch (e) {
+      console.warn('Could not load global config:', e);
+    }
+    
     // Initialize Database
     await initDBAndFrames();
     
@@ -1036,23 +1053,6 @@ document.addEventListener('DOMContentLoaded', () => {
     resetMediaTransformations();
     updateSlotThumbnails();
     startCanvasLoop();
-    
-    // Load global GDrive config
-    try {
-      const configRes = await fetch('api.php?action=get_config');
-      const configData = await configRes.json();
-      globalConfig = configData;
-      if (globalGDriveFolderId) globalGDriveFolderId.value = configData.gdrive_folder_id || '';
-      if (globalGDriveScriptUrl) globalGDriveScriptUrl.value = configData.gdrive_script_url || '';
-      if (globalGdriveStatus) {
-        globalGdriveStatus.textContent = configData.gdrive_folder_id ? '✅ Aktif' : 'Belum disetel';
-        globalGdriveStatus.style.color = configData.gdrive_folder_id ? '#34d399' : 'var(--text-muted)';
-      }
-      // Show gdriveCard if global config exists even if per-frame doesn't
-      if (gdriveCard && (configData.gdrive_folder_id || (activeFrame && activeFrame.gdrive_folder_id))) {
-        gdriveCard.style.display = 'flex';
-      }
-    } catch (e) { console.warn('Could not load global config:', e); }
 
     // Admin: save global GDrive config
     if (btnSaveGlobalGDrive) {
