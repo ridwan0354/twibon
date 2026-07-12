@@ -1410,7 +1410,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const folderId = activeFrame.gdrive_folder_id;
         const scriptUrl = activeFrame.gdrive_script_url;
         
-        const fetchUrl = `${scriptUrl}?id=${folderId}`;
+        const fetchUrl = `api.php?action=gdrive_files&folder_id=${encodeURIComponent(folderId)}&script_url=${encodeURIComponent(scriptUrl)}`;
         
         try {
           const response = await fetch(fetchUrl);

@@ -122,6 +122,42 @@ if ($method === 'GET') {
         }
         exit();
     }
+    
+    if ($action === 'gdrive_files') {
+        $folder_id = isset($_GET['folder_id']) ? trim($_GET['folder_id']) : '';
+        $script_url = isset($_GET['script_url']) ? trim($_GET['script_url']) : '';
+        
+        if (empty($folder_id) || empty($script_url)) {
+            http_response_code(400);
+            echo json_encode(["error" => "Folder ID and Apps Script URL are required."]);
+            exit();
+        }
+        
+        if (strpos($script_url, 'https://script.google.com/') !== 0) {
+            http_response_code(400);
+            echo json_encode(["error" => "Invalid Google Apps Script URL. Must start with https://script.google.com/"]);
+            exit();
+        }
+        
+        $url = $script_url . (strpos($script_url, '?') !== false ? '&' : '?') . 'id=' . urlencode($folder_id);
+        
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+        $response = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        
+        if ($http_code === 200 && $response) {
+            echo $response;
+        } else {
+            http_response_code(500);
+            echo json_encode(["error" => "Failed to fetch files from Google Apps Script. HTTP Code: " . $http_code]);
+        }
+        exit();
+    }
 
     echo json_encode(read_frames());
     exit();
