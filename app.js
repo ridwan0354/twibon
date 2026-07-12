@@ -125,6 +125,25 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnSaveGlobalGDrive = document.getElementById('btnSaveGlobalGDrive');
   const globalGdriveStatus = document.getElementById('globalGdriveStatus');
 
+  const printOrderModal = document.getElementById('printOrderModal');
+  const btnClosePrintOrderModal = document.getElementById('btnClosePrintOrderModal');
+  const printOrderName = document.getElementById('printOrderName');
+  const printOrderWhatsapp = document.getElementById('printOrderWhatsapp');
+  const printOrderPaymentMethod = document.getElementById('printOrderPaymentMethod');
+  const printOrderQrisContainer = document.getElementById('printOrderQrisContainer');
+  const printOrderQrisImg = document.getElementById('printOrderQrisImg');
+  const printOrderPaymentProofInput = document.getElementById('printOrderPaymentProofInput');
+  const printOrderPaymentProofFileName = document.getElementById('printOrderPaymentProofFileName');
+  const btnSubmitPrintOrder = document.getElementById('btnSubmitPrintOrder');
+  const btnExportPrint = document.getElementById('btnExportPrint');
+  const btnQuickExportPrint = document.getElementById('btnQuickExportPrint');
+  const adminQrisStatus = document.getElementById('adminQrisStatus');
+  const adminQrisPreviewContainer = document.getElementById('adminQrisPreviewContainer');
+  const adminQrisPreviewImg = document.getElementById('adminQrisPreviewImg');
+  const adminQrisFileInput = document.getElementById('adminQrisFileInput');
+  const adminQrisFileName = document.getElementById('adminQrisFileName');
+  const btnSaveQrisConfig = document.getElementById('btnSaveQrisConfig');
+
   // --- STATE ---
   let frameImage = new Image();
   let defaultFrameUrl = null;
@@ -1031,6 +1050,16 @@ document.addEventListener('DOMContentLoaded', () => {
         globalGdriveStatus.textContent = configData.gdrive_folder_id ? '✅ Aktif' : 'Belum disetel';
         globalGdriveStatus.style.color = configData.gdrive_folder_id ? '#34d399' : 'var(--text-muted)';
       }
+
+      // Load global QRIS config info
+      if (configData.qris_image) {
+        if (adminQrisStatus) adminQrisStatus.textContent = '✅ Aktif';
+        if (adminQrisPreviewContainer && adminQrisPreviewImg) {
+          adminQrisPreviewImg.src = configData.qris_image;
+          adminQrisPreviewContainer.style.display = 'block';
+        }
+        if (printOrderQrisImg) printOrderQrisImg.src = configData.qris_image;
+      }
     } catch (e) {
       console.warn('Could not load global config:', e);
     }
@@ -1641,6 +1670,190 @@ document.addEventListener('DOMContentLoaded', () => {
         loadActiveSlotState(idx);
       });
     });
+
+    // --- PRINT ORDER (CETAK FOTO) EVENTS ---
+    const openPrintOrderModal = () => {
+      const hasMedia = slots.some(s => s.mediaElement);
+      if (!hasMedia) {
+        alert('Unggah foto/video atau gunakan kamera terlebih dahulu!');
+        return;
+      }
+      
+      if (printOrderName) printOrderName.value = '';
+      if (printOrderWhatsapp) printOrderWhatsapp.value = '';
+      if (printOrderPaymentMethod) printOrderPaymentMethod.value = 'cash';
+      if (printOrderQrisContainer) printOrderQrisContainer.style.display = 'none';
+      if (printOrderPaymentProofInput) printOrderPaymentProofInput.value = '';
+      if (printOrderPaymentProofFileName) printOrderPaymentProofFileName.textContent = 'Belum ada bukti pembayaran terpilih';
+
+      if (globalConfig && globalConfig.qris_image) {
+        if (printOrderQrisImg) printOrderQrisImg.src = globalConfig.qris_image;
+      }
+
+      if (printOrderModal) printOrderModal.classList.remove('hidden');
+    };
+
+    if (btnExportPrint) btnExportPrint.addEventListener('click', openPrintOrderModal);
+    if (btnQuickExportPrint) btnQuickExportPrint.addEventListener('click', openPrintOrderModal);
+
+    if (btnClosePrintOrderModal) {
+      btnClosePrintOrderModal.addEventListener('click', () => {
+        if (printOrderModal) printOrderModal.classList.add('hidden');
+      });
+    }
+
+    if (printOrderPaymentMethod) {
+      printOrderPaymentMethod.addEventListener('change', (e) => {
+        if (printOrderQrisContainer) {
+          if (e.target.value === 'qris') {
+            printOrderQrisContainer.style.display = 'flex';
+          } else {
+            printOrderQrisContainer.style.display = 'none';
+          }
+        }
+      });
+    }
+
+    if (printOrderPaymentProofInput) {
+      printOrderPaymentProofInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (printOrderPaymentProofFileName) {
+          printOrderPaymentProofFileName.textContent = file ? file.name : 'Belum ada bukti pembayaran terpilih';
+        }
+      });
+    }
+
+    if (btnSubmitPrintOrder) {
+      btnSubmitPrintOrder.addEventListener('click', async () => {
+        const name = printOrderName ? printOrderName.value.trim() : '';
+        const whatsapp = printOrderWhatsapp ? printOrderWhatsapp.value.trim() : '';
+        const paymentMethod = printOrderPaymentMethod ? printOrderPaymentMethod.value : 'cash';
+        
+        if (!name || !whatsapp) {
+          alert('Nama dan No WhatsApp wajib diisi.');
+          return;
+        }
+
+        const proofFile = (paymentMethod === 'qris' && printOrderPaymentProofInput) ? printOrderPaymentProofInput.files[0] : null;
+        if (paymentMethod === 'qris' && !proofFile) {
+          alert('Silakan pilih file bukti pembayaran QRIS (foto/tangkapan layar) terlebih dahulu.');
+          return;
+        }
+
+        btnSubmitPrintOrder.disabled = true;
+        const originalText = btnSubmitPrintOrder.innerHTML;
+        btnSubmitPrintOrder.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengirim Pesanan...';
+
+        try {
+          isExporting = true;
+          draw(); // clean redraw without guides
+          
+          canvas.toBlob(async (blob) => {
+            isExporting = false;
+            draw(); // restore guides
+
+            if (!blob) {
+              alert('Gagal menghasilkan gambar twibbon.');
+              btnSubmitPrintOrder.disabled = false;
+              btnSubmitPrintOrder.innerHTML = originalText;
+              return;
+            }
+
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('whatsapp', whatsapp);
+            formData.append('payment_method', paymentMethod);
+            formData.append('twibbon_image', blob, 'twibbon.png');
+            if (proofFile) {
+              formData.append('payment_proof', proofFile);
+            }
+
+            try {
+              const response = await fetch('api.php?action=create_order', {
+                method: 'POST',
+                body: formData
+              });
+              const data = await response.json();
+              if (response.ok && data.success) {
+                alert('Pesanan cetak berhasil dikirim! Silakan tunggu antrian Anda di monitor.');
+                if (printOrderModal) printOrderModal.classList.add('hidden');
+              } else {
+                alert('Gagal mengirim pesanan: ' + (data.error || 'Terjadi kesalahan.'));
+              }
+            } catch (err) {
+              console.error(err);
+              alert('Gagal menghubungi server.');
+            } finally {
+              btnSubmitPrintOrder.disabled = false;
+              btnSubmitPrintOrder.innerHTML = originalText;
+            }
+          }, 'image/png');
+
+        } catch (e) {
+          isExporting = false;
+          draw();
+          alert('Terjadi kesalahan saat memproses gambar.');
+          btnSubmitPrintOrder.disabled = false;
+          btnSubmitPrintOrder.innerHTML = originalText;
+        }
+      });
+    }
+
+    // Admin: QRIS file input and upload
+    if (adminQrisFileInput) {
+      adminQrisFileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (adminQrisFileName) {
+          adminQrisFileName.textContent = file ? file.name : 'Belum ada QRIS terpilih';
+        }
+      });
+    }
+
+    if (btnSaveQrisConfig) {
+      btnSaveQrisConfig.addEventListener('click', async () => {
+        const file = adminQrisFileInput ? adminQrisFileInput.files[0] : null;
+        if (!file) {
+          alert('Silakan pilih file QRIS terlebih dahulu.');
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('qris_image', file);
+        formData.append('password', '354313');
+
+        btnSaveQrisConfig.disabled = true;
+        const originalText = btnSaveQrisConfig.innerHTML;
+        btnSaveQrisConfig.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengunggah...';
+
+        try {
+          const res = await fetch('api.php?action=upload_qris', {
+            method: 'POST',
+            body: formData
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            alert('Gambar QRIS Toko berhasil diperbarui!');
+            if (globalConfig) globalConfig.qris_image = data.qris_image;
+            if (adminQrisStatus) adminQrisStatus.textContent = '✅ Aktif';
+            if (adminQrisPreviewContainer && adminQrisPreviewImg) {
+              adminQrisPreviewImg.src = data.qris_image;
+              adminQrisPreviewContainer.style.display = 'block';
+            }
+            if (printOrderQrisImg) printOrderQrisImg.src = data.qris_image;
+            adminQrisFileInput.value = '';
+            adminQrisFileName.textContent = 'Belum ada QRIS terpilih';
+          } else {
+            alert('Gagal mengunggah QRIS: ' + (data.error || 'Terjadi kesalahan.'));
+          }
+        } catch (e) {
+          console.error(e);
+          alert('Gagal menghubungi server.');
+        } finally {
+          btnSaveQrisConfig.disabled = false;
+          btnSaveQrisConfig.innerHTML = originalText;
+        }
+      });
+    }
   }
 
   // --- SLOT MANAGEMENT HELPERS ---

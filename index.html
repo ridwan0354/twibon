@@ -119,12 +119,15 @@
 
           <!-- Quick export buttons under canvas -->
           <div class="quick-export-panel" id="quickExportPanel" style="display: none; width: 100%; margin-top: 5px;">
-            <div class="export-options">
-              <button id="btnQuickExportDownload" class="btn btn-primary btn-block">
-                <i class="fa-solid fa-file-arrow-down"></i> Unduh Hasil Twibbon
+            <div class="export-options" style="display: flex; gap: 8px;">
+              <button id="btnQuickExportDownload" class="btn btn-primary" style="flex: 1; padding: 10px; font-size: 13px;">
+                <i class="fa-solid fa-file-arrow-down"></i> Unduh
               </button>
-              <button id="btnQuickExportShare" class="btn btn-secondary btn-block">
+              <button id="btnQuickExportShare" class="btn btn-secondary" style="flex: 1; padding: 10px; font-size: 13px;">
                 <i class="fa-solid fa-share-nodes"></i> Bagikan
+              </button>
+              <button id="btnQuickExportPrint" class="btn" style="flex: 1; padding: 10px; font-size: 13px; background: #ea580c; border: none; font-weight: 700; color: #fff; border-radius: var(--radius-sm); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                <i class="fa-solid fa-print"></i> Cetak
               </button>
             </div>
           </div>
@@ -341,12 +344,15 @@
               <span class="status-text" id="exportStatusText">Mengekspor video... 0%</span>
             </div>
 
-            <div class="export-options">
-              <button id="btnExportDownload" class="btn btn-primary btn-block">
+            <div class="export-options" style="display: flex; flex-direction: column; gap: 8px;">
+              <button id="btnExportDownload" class="btn btn-primary btn-block" style="margin:0;">
                 <i class="fa-solid fa-file-arrow-down"></i> Download Hasil
               </button>
-              <button id="btnExportShare" class="btn btn-secondary btn-block">
+              <button id="btnExportShare" class="btn btn-secondary btn-block" style="margin:0;">
                 <i class="fa-solid fa-share-nodes"></i> Bagikan Langsung
+              </button>
+              <button id="btnExportPrint" class="btn btn-block" style="margin:0; background: #ea580c; color: white; border: none; font-weight: 700;">
+                <i class="fa-solid fa-print"></i> Cetak Foto Sekarang
               </button>
             </div>
 
@@ -399,6 +405,34 @@
                 </div>
                 <button id="btnSaveGlobalGDrive" class="btn btn-primary btn-sm" style="width: 100%; font-size: 12px; padding: 8px; font-weight: 700; border-radius: 4px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
                   <i class="fa-solid fa-floppy-disk"></i> Simpan Pengaturan Global
+                </button>
+              </div>
+
+              <!-- Global QRIS Payment Config -->
+              <div style="background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(96,165,250,0.04)); border: 1px solid rgba(59,130,246,0.25); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-qrcode" style="color: #60a5fa; font-size: 16px;"></i>
+                    <span style="font-weight: 700; font-size: 13px; color: #60a5fa;">QRIS Pembayaran</span>
+                    <span style="font-size: 10px; background: rgba(59,130,246,0.15); color: #60a5fa; padding: 2px 8px; border-radius: 99px; font-weight: 600;">Metode Cetak</span>
+                  </div>
+                  <span id="adminQrisStatus" style="font-size: 11px; color: var(--text-muted);">Belum diunggah</span>
+                </div>
+                
+                <div id="adminQrisPreviewContainer" style="display: none; text-align: center; margin-bottom: 12px; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 8px; border: 1px dashed var(--panel-border);">
+                  <img id="adminQrisPreviewImg" src="" style="max-height: 120px; border-radius: 4px; object-fit: contain;">
+                </div>
+
+                <div class="form-group" style="margin-bottom: 10px;">
+                  <label for="adminQrisFileInput" class="btn btn-secondary btn-block" style="font-size: 12px; padding: 8px; margin: 0; cursor: pointer; text-align: center;">
+                    <i class="fa-solid fa-image"></i> Pilih Gambar QRIS (.png, .jpg)
+                  </label>
+                  <input type="file" id="adminQrisFileInput" accept="image/png, image/jpeg, image/jpg" style="display: none;">
+                  <span id="adminQrisFileName" class="file-name-text" style="font-size: 11px; text-align: center; display: block; margin-top: 4px; color: var(--text-muted);">Belum ada QRIS terpilih</span>
+                </div>
+                
+                <button id="btnSaveQrisConfig" class="btn btn-primary btn-sm" style="width: 100%; font-size: 12px; padding: 8px; font-weight: 700; border-radius: 4px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; background: #3b82f6;">
+                  <i class="fa-solid fa-cloud-arrow-up"></i> Upload & Simpan QRIS
                 </button>
               </div>
 
@@ -670,6 +704,58 @@
           </div>
           
           <button id="btnSaveGDriveEdit" class="btn btn-primary btn-block" style="margin-top: 8px;"><i class="fa-solid fa-floppy-disk"></i> Simpan Pengaturan G Drive</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Print Order (Cetak Foto) -->
+    <div id="printOrderModal" class="modal-overlay hidden" style="z-index: 1004;">
+      <div class="modal-card" style="max-width: 480px;">
+        <div class="modal-header" style="position: relative; display: flex; justify-content: space-between; align-items: center; text-align: left; padding: 20px 24px;">
+          <h2 style="font-size: 18px; margin: 0; background: linear-gradient(to right, #ea580c, #f97316); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"><i class="fa-solid fa-print" style="-webkit-text-fill-color: initial;"></i> Form Cetak Foto Twibbon</h2>
+          <button id="btnClosePrintOrderModal" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 20px; padding: 4px;"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 14px;">
+          
+          <div class="form-group">
+            <label style="display: block; margin-bottom: 4px; font-size: 13px; color: var(--text-muted); font-weight: 600;">Nama Lengkap:</label>
+            <input type="text" id="printOrderName" placeholder="Contoh: Ridwan Al-Fatih" class="form-control" style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--panel-border); color: var(--text-primary); border-radius: var(--radius-sm); padding: 10px; width: 100%; font-size: 13px; outline: none; box-sizing: border-box;">
+          </div>
+          
+          <div class="form-group">
+            <label style="display: block; margin-bottom: 4px; font-size: 13px; color: var(--text-muted); font-weight: 600;">Nomor WhatsApp:</label>
+            <input type="tel" id="printOrderWhatsapp" placeholder="Contoh: 081234567890" class="form-control" style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--panel-border); color: var(--text-primary); border-radius: var(--radius-sm); padding: 10px; width: 100%; font-size: 13px; outline: none; box-sizing: border-box;">
+          </div>
+          
+          <div class="form-group">
+            <label style="display: block; margin-bottom: 4px; font-size: 13px; color: var(--text-muted); font-weight: 600;">Metode Pembayaran:</label>
+            <select id="printOrderPaymentMethod" class="form-control" style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--panel-border); color: var(--text-primary); border-radius: var(--radius-sm); padding: 10px; width: 100%; font-size: 13px; outline: none; box-sizing: border-box;">
+              <option value="cash" selected>💵 Cash / Tunai di Tempat</option>
+              <option value="qris">📱 QRIS (Pembayaran Non-Tunai)</option>
+            </select>
+          </div>
+
+          <!-- QRIS Section (Hidden by default unless selected) -->
+          <div id="printOrderQrisContainer" style="display: none; background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(96, 165, 250, 0.2); border-radius: 8px; padding: 12px; flex-direction: column; gap: 10px;">
+            <div style="text-align: center;">
+              <span style="font-size: 11px; color: #60a5fa; font-weight: 700; display: block; margin-bottom: 6px; text-transform: uppercase;">Silakan Scan QRIS Berikut:</span>
+              <div style="background: white; padding: 8px; border-radius: 8px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                <img id="printOrderQrisImg" src="" style="max-height: 180px; display: block; max-width: 100%; height: auto;" alt="Scan QRIS">
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="printOrderPaymentProofInput" class="btn btn-secondary btn-block" style="font-size: 12px; padding: 8px; margin: 0; text-align: center; cursor: pointer;">
+                <i class="fa-solid fa-file-invoice-dollar"></i> Upload Bukti Bayar QRIS (Tangkapan Layar)
+              </label>
+              <input type="file" id="printOrderPaymentProofInput" accept="image/*" style="display: none;">
+              <span id="printOrderPaymentProofFileName" class="file-name-text" style="font-size: 11px; text-align: center; display: block; margin-top: 4px; color: var(--text-muted);">Belum ada bukti pembayaran terpilih</span>
+            </div>
+          </div>
+          
+          <button id="btnSubmitPrintOrder" class="btn btn-primary btn-block" style="margin-top: 10px; background: #ea580c; border: none; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; height: 42px;">
+            <i class="fa-solid fa-paper-plane"></i> Kirim Pesanan Cetak
+          </button>
         </div>
       </div>
     </div>

@@ -12,10 +12,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $db_file = __DIR__ . '/frames.json';
 $config_file = __DIR__ . '/config.json';
 $upload_dir = __DIR__ . '/uploads/';
+$orders_dir = __DIR__ . '/uploads/orders/';
+$orders_file = __DIR__ . '/orders.json';
 
-// Ensure upload directory exists
+// Ensure upload directories exist
 if (!is_dir($upload_dir)) {
     mkdir($upload_dir, 0755, true);
+}
+if (!is_dir($orders_dir)) {
+    mkdir($orders_dir, 0755, true);
+}
+
+// Function to read orders
+function read_orders() {
+    global $orders_file;
+    if (!file_exists($orders_file)) {
+        return [];
+    }
+    $content = file_get_contents($orders_file);
+    $data = json_decode($content, true);
+    return is_array($data) ? $data : [];
+}
+
+// Function to write orders
+function write_orders($orders) {
+    global $orders_file;
+    return file_put_contents($orders_file, json_encode($orders, JSON_PRETTY_PRINT));
 }
 
 // Function to read frames from database file
@@ -177,14 +199,206 @@ if ($method === 'GET') {
         exit();
     }
 
+    if ($action === 'get_orders') {
+        echo json_encode(read_orders());
+        exit();
+    }
+
     echo json_encode(read_frames());
     exit();
 }
 
-// 2. POST /api.php - Admin operations
+// 2. POST /api.php - Operations
 if ($method === 'POST') {
-    check_auth();
+    if ($action !== 'create_order') {
+        check_auth();
+    }
     
+    // Create Print Order (Public)
+    if ($action === 'create_order') {
+        $name = isset($_POST['name']) ? trim($_POST['name']) : '';
+        $whatsapp = isset($_POST['whatsapp']) ? trim($_POST['whatsapp']) : '';
+        $payment_method = isset($_POST['payment_method']) ? trim($_POST['payment_method']) : '';
+
+        if (empty($name) || empty($whatsapp) || empty($payment_method)) {
+            http_response_code(400);
+            echo json_encode(["error" => "Nama, No WhatsApp, dan Metode Pembayaran wajib diisi."]);
+            exit();
+        }
+
+        // Validate twibbon image upload
+        if (!isset($_FILES['twibbon_image']) || $_FILES['twibbon_image']['error'] !== UPLOAD_ERR_OK) {
+            http_response_code(400);
+            echo json_encode(["error" => "Hasil gambar twibbon wajib diunggah."]);
+            exit();
+        }
+
+        // Save Twibbon Image
+        $twibbon_file = $_FILES['twibbon_image'];
+        $twibbon_ext = strtolower(pathinfo($twibbon_file['name'], PATHINFO_EXTENSION));
+        if (!in_array($twibbon_ext, ['png', 'jpg', 'jpeg'])) {
+            $twibbon_ext = 'png';
+        }
+        $twibbon_filename = 'twibbon_' . time() . '_' . uniqid() . '.' . $twibbon_ext;
+        $twibbon_dest = $orders_dir . $twibbon_filename;
+
+        if (!move_uploaded_file($twibbon_file['tmp_name'], $twibbon_dest)) {
+            http_response_code(500);
+            echo json_encode(["error" => "Gagal menyimpan hasil gambar twibbon ke server."]);
+            exit();
+        }
+
+        // Handle Payment Proof if payment method is QRIS
+        $proof_path = null;
+        if ($payment_method === 'qris') {
+            if (!isset($_FILES['payment_proof']) || $_FILES['payment_proof']['error'] !== UPLOAD_ERR_OK) {
+                @unlink($twibbon_dest);
+                http_response_code(400);
+                echo json_encode(["error" => "Bukti pembayaran QRIS wajib diunggah untuk metode QRIS."]);
+                exit();
+            }
+            $proof_file = $_FILES['payment_proof'];
+            $proof_ext = strtolower(pathinfo($proof_file['name'], PATHINFO_EXTENSION));
+            if (!in_array($proof_ext, ['png', 'jpg', 'jpeg'])) {
+                $proof_ext = 'png';
+            }
+            $proof_filename = 'proof_' . time() . '_' . uniqid() . '.' . $proof_ext;
+            $proof_dest = $orders_dir . $proof_filename;
+
+            if (!move_uploaded_file($proof_file['tmp_name'], $proof_dest)) {
+                @unlink($twibbon_dest);
+                http_response_code(500);
+                echo json_encode(["error" => "Gagal menyimpan bukti pembayaran ke server."]);
+                exit();
+            }
+            $proof_path = "uploads/orders/" . $proof_filename;
+        }
+
+        // Save Order to database
+        $orders = read_orders();
+        $new_order = [
+            "id" => "ord_" . time() . "_" . uniqid(),
+            "name" => $name,
+            "whatsapp" => $whatsapp,
+            "payment_method" => $payment_method,
+            "twibbon_image" => "uploads/orders/" . $twibbon_filename,
+            "payment_proof" => $proof_path,
+            "status" => "pending",
+            "created_at" => date("Y-m-d H:i:s")
+        ];
+        $orders[] = $new_order;
+        write_orders($orders);
+
+        echo json_encode(["success" => true, "order" => $new_order]);
+        exit();
+    }
+
+    // Upload QRIS Image (Admin)
+    if ($action === 'upload_qris') {
+        if (!isset($_FILES['qris_image']) || $_FILES['qris_image']['error'] !== UPLOAD_ERR_OK) {
+            http_response_code(400);
+            echo json_encode(["error" => "File QRIS image is required."]);
+            exit();
+        }
+
+        $file = $_FILES['qris_image'];
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if (!in_array($ext, ['png', 'jpg', 'jpeg', 'gif'])) {
+            http_response_code(400);
+            echo json_encode(["error" => "Only PNG, JPG, JPEG, or GIF images are allowed for QRIS."]);
+            exit();
+        }
+
+        $filename = 'qris_' . time() . '_' . uniqid() . '.' . $ext;
+        $destination = $upload_dir . $filename;
+
+        if (move_uploaded_file($file['tmp_name'], $destination)) {
+            $config = read_config();
+            if (!empty($config['qris_image']) && file_exists(__DIR__ . '/' . $config['qris_image'])) {
+                @unlink(__DIR__ . '/' . $config['qris_image']);
+            }
+            $config['qris_image'] = "uploads/" . $filename;
+            write_config($config);
+
+            echo json_encode(["success" => true, "qris_image" => $config['qris_image']]);
+        } else {
+            http_response_code(500);
+            echo json_encode(["error" => "Failed to save QRIS image."]);
+        }
+        exit();
+    }
+
+    // Update Order Status (Admin)
+    if ($action === 'update_order_status') {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $id = isset($input['id']) ? trim($input['id']) : '';
+        $status = isset($input['status']) ? trim($input['status']) : '';
+
+        if (empty($id) || empty($status)) {
+            http_response_code(400);
+            echo json_encode(["error" => "Order ID and Status are required."]);
+            exit();
+        }
+
+        $orders = read_orders();
+        $found = false;
+        foreach ($orders as &$order) {
+            if ($order['id'] === $id) {
+                $order['status'] = $status;
+                $found = true;
+                break;
+            }
+        }
+
+        if ($found) {
+            write_orders($orders);
+            echo json_encode(["success" => true]);
+        } else {
+            http_response_code(404);
+            echo json_encode(["error" => "Order not found."]);
+        }
+        exit();
+    }
+
+    // Delete Order (Admin)
+    if ($action === 'delete_order') {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $id = isset($input['id']) ? trim($input['id']) : '';
+
+        if (empty($id)) {
+            http_response_code(400);
+            echo json_encode(["error" => "Order ID is required."]);
+            exit();
+        }
+
+        $orders = read_orders();
+        $filtered_orders = [];
+        $found = false;
+
+        foreach ($orders as $order) {
+            if ($order['id'] === $id) {
+                if (!empty($order['twibbon_image']) && file_exists(__DIR__ . '/' . $order['twibbon_image'])) {
+                    @unlink(__DIR__ . '/' . $order['twibbon_image']);
+                }
+                if (!empty($order['payment_proof']) && file_exists(__DIR__ . '/' . $order['payment_proof'])) {
+                    @unlink(__DIR__ . '/' . $order['payment_proof']);
+                }
+                $found = true;
+            } else {
+                $filtered_orders[] = $order;
+            }
+        }
+
+        if ($found) {
+            write_orders($filtered_orders);
+            echo json_encode(["success" => true]);
+        } else {
+            http_response_code(404);
+            echo json_encode(["error" => "Order not found."]);
+        }
+        exit();
+    }
+
     // Save Global Config
     if ($action === 'save_config') {
         $input = json_decode(file_get_contents('php://input'), true);
