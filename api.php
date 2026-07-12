@@ -10,6 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 $db_file = __DIR__ . '/frames.json';
+$config_file = __DIR__ . '/config.json';
 $upload_dir = __DIR__ . '/uploads/';
 
 // Ensure upload directory exists
@@ -53,6 +54,22 @@ function read_frames() {
     return $data;
 }
 
+// Function to read global config
+function read_config() {
+    global $config_file;
+    if (!file_exists($config_file)) {
+        return ["gdrive_folder_id" => "", "gdrive_script_url" => ""];
+    }
+    $data = json_decode(file_get_contents($config_file), true);
+    return is_array($data) ? $data : ["gdrive_folder_id" => "", "gdrive_script_url" => ""];
+}
+
+// Function to write global config
+function write_config($data) {
+    global $config_file;
+    return file_put_contents($config_file, json_encode($data, JSON_PRETTY_PRINT));
+}
+
 // Function to write frames to database file
 function write_frames($frames) {
     global $db_file;
@@ -92,6 +109,10 @@ $action = isset($_GET['action']) ? $_GET['action'] : '';
 
 // 1. GET /api.php - Get all frames or Google Drive proxy
 if ($method === 'GET') {
+    if ($action === 'get_config') {
+        echo json_encode(read_config());
+        exit();
+    }
     if ($action === 'gdrive_proxy') {
         $file_id = isset($_GET['file_id']) ? trim($_GET['file_id']) : '';
         if (empty($file_id)) {
@@ -164,6 +185,17 @@ if ($method === 'GET') {
 if ($method === 'POST') {
     check_auth();
     
+    // Save Global Config
+    if ($action === 'save_config') {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $config = read_config();
+        if (isset($input['gdrive_folder_id'])) $config['gdrive_folder_id'] = trim($input['gdrive_folder_id']);
+        if (isset($input['gdrive_script_url'])) $config['gdrive_script_url'] = trim($input['gdrive_script_url']);
+        write_config($config);
+        echo json_encode(["success" => true]);
+        exit();
+    }
+
     // Save Frame
     if ($action === 'save') {
         if (!isset($_POST['name']) || empty(trim($_POST['name']))) {
