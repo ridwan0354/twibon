@@ -128,14 +128,12 @@ if ($method === 'GET') {
         $script_url = isset($_GET['script_url']) ? trim($_GET['script_url']) : '';
         
         if (empty($folder_id) || empty($script_url)) {
-            http_response_code(400);
-            echo json_encode(["error" => "Folder ID and Apps Script URL are required."]);
+            echo json_encode(["success" => false, "error" => "Folder ID and Apps Script URL are required."]);
             exit();
         }
         
         if (strpos($script_url, 'https://script.google.com/') !== 0) {
-            http_response_code(400);
-            echo json_encode(["error" => "Invalid Google Apps Script URL. Must start with https://script.google.com/"]);
+            echo json_encode(["success" => false, "error" => "Invalid Google Apps Script URL. Must start with https://script.google.com/"]);
             exit();
         }
         
@@ -153,8 +151,7 @@ if ($method === 'GET') {
         if ($http_code === 200 && $response) {
             echo $response;
         } else {
-            http_response_code(500);
-            echo json_encode(["error" => "Failed to fetch files from Google Apps Script. HTTP Code: " . $http_code]);
+            echo json_encode(["success" => false, "error" => "Failed to fetch files from Google Apps Script. HTTP Code: " . $http_code]);
         }
         exit();
     }

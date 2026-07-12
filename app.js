@@ -1414,7 +1414,15 @@ document.addEventListener('DOMContentLoaded', () => {
         
         try {
           const response = await fetch(fetchUrl);
-          const data = await response.json();
+          const text = await response.text();
+          
+          let data;
+          try {
+            data = JSON.parse(text);
+          } catch (jsonErr) {
+            console.error("Non-JSON response:", text);
+            throw new Error("Respons server tidak valid (bukan format JSON). Silakan periksa kembali konfigurasi URL Apps Script Anda.");
+          }
           
           gdriveLoader.style.display = 'none';
           
