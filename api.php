@@ -90,8 +90,39 @@ function check_auth() {
 $method = $_SERVER['REQUEST_METHOD'];
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 
-// 1. GET /api.php - Get all frames
+// 1. GET /api.php - Get all frames or Google Drive proxy
 if ($method === 'GET') {
+    if ($action === 'gdrive_proxy') {
+        $file_id = isset($_GET['file_id']) ? trim($_GET['file_id']) : '';
+        if (empty($file_id)) {
+            http_response_code(400);
+            echo json_encode(["error" => "File ID is required."]);
+            exit();
+        }
+        
+        $url = "https://lh3.googleusercontent.com/d/" . $file_id;
+        
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+        $data = curl_exec($ch);
+        $mime = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        
+        if ($http_code === 200 && $data) {
+            header("Content-Type: " . $mime);
+            header("Cache-Control: public, max-age=86400"); // Cache for 1 day
+            echo $data;
+        } else {
+            http_response_code(404);
+            echo "Failed to load image from Google Drive.";
+        }
+        exit();
+    }
+
     echo json_encode(read_frames());
     exit();
 }
@@ -163,7 +194,9 @@ if ($method === 'POST') {
                 "order" => $next_order,
                 "isDefault" => false,
                 "slots_count" => $slots_count,
-                "slots" => $slots_arr
+                "slots" => $slots_arr,
+                "gdrive_folder_id" => isset($_POST['gdrive_folder_id']) ? trim($_POST['gdrive_folder_id']) : '',
+                "gdrive_script_url" => isset($_POST['gdrive_script_url']) ? trim($_POST['gdrive_script_url']) : ''
             ];
             
             $frames[] = $new_frame;

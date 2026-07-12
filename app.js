@@ -99,6 +99,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const newFrameFileInput = document.getElementById('newFrameFileInput');
   const newFrameFileName = document.getElementById('newFrameFileName');
   const btnAdminSaveFrame = document.getElementById('btnAdminSaveFrame');
+  const newFrameGDriveFolderId = document.getElementById('newFrameGDriveFolderId');
+  const newFrameGDriveScriptUrl = document.getElementById('newFrameGDriveScriptUrl');
+  const btnShowGDriveGuide = document.getElementById('btnShowGDriveGuide');
+  const gdriveGuideModal = document.getElementById('gdriveGuideModal');
+  const btnCloseGDriveGuide = document.getElementById('btnCloseGDriveGuide');
+  const gdriveCard = document.getElementById('gdriveCard');
+  const gdriveSelectorModal = document.getElementById('gdriveSelectorModal');
+  const btnCloseGDriveSelector = document.getElementById('btnCloseGDriveSelector');
+  const gdriveLoader = document.getElementById('gdriveLoader');
+  const gdriveError = document.getElementById('gdriveError');
+  const gdriveErrorMessage = document.getElementById('gdriveErrorMessage');
+  const gdrivePhotoGrid = document.getElementById('gdrivePhotoGrid');
 
   // --- STATE ---
   let frameImage = new Image();
@@ -376,6 +388,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const slotsCount = frame.slots_count !== undefined ? parseInt(frame.slots_count) : 4;
     updateSlotsVisibility(slotsCount);
     recalculateAllSlotsFitScale();
+
+    // Show or hide GDrive card depending on active frame properties
+    if (frame.gdrive_folder_id && frame.gdrive_script_url) {
+      gdriveCard.style.display = 'flex';
+    } else {
+      gdriveCard.style.display = 'none';
+    }
   }
 
   function recalculateAllSlotsFitScale() {
@@ -658,11 +677,20 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
     
+    const gdriveFolderId = newFrameGDriveFolderId ? newFrameGDriveFolderId.value.trim() : '';
+    const gdriveScriptUrl = newFrameGDriveScriptUrl ? newFrameGDriveScriptUrl.value.trim() : '';
+    
+    if (gdriveScriptUrl) {
+      localStorage.setItem('last_gdrive_script_url', gdriveScriptUrl);
+    }
+    
     const formData = new FormData();
     formData.append('name', name);
     formData.append('frame_image', file);
     formData.append('slots_count', slotsCount);
     formData.append('slots', JSON.stringify(slotsArr));
+    formData.append('gdrive_folder_id', gdriveFolderId);
+    formData.append('gdrive_script_url', gdriveScriptUrl);
     formData.append('password', '354313');
     
     try {
@@ -679,6 +707,8 @@ document.addEventListener('DOMContentLoaded', () => {
         newFrameFileInput.value = '';
         newFrameFileName.textContent = 'Belum ada file terpilih';
         newFrameFileBase64 = null;
+        if (newFrameGDriveFolderId) newFrameGDriveFolderId.value = '';
+        // Keep the script URL pre-filled from localStorage for convenience, no need to clear it
         
         // Hide preview containers
         const previewContainer = document.getElementById('adminLayoutPreviewContainer');
@@ -902,6 +932,14 @@ document.addEventListener('DOMContentLoaded', () => {
     resetMediaTransformations();
     updateSlotThumbnails();
     startCanvasLoop();
+    
+    // Pre-populate last used Google Apps Script URL
+    if (newFrameGDriveScriptUrl) {
+      const savedUrl = localStorage.getItem('last_gdrive_script_url');
+      if (savedUrl) {
+        newFrameGDriveScriptUrl.value = savedUrl;
+      }
+    }
     
     // Show start screen selector modal
     await showStartModal();
@@ -1186,6 +1224,114 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (btnAdminSaveFrame) {
       btnAdminSaveFrame.addEventListener('click', handleAdminSaveFrame);
+    }
+
+    // Google Drive Event Listeners
+    if (btnShowGDriveGuide) {
+      btnShowGDriveGuide.addEventListener('click', (e) => {
+        e.preventDefault();
+        gdriveGuideModal.classList.remove('hidden');
+      });
+    }
+    if (btnCloseGDriveGuide) {
+      btnCloseGDriveGuide.addEventListener('click', () => {
+        gdriveGuideModal.classList.add('hidden');
+      });
+    }
+    if (btnCloseGDriveSelector) {
+      btnCloseGDriveSelector.addEventListener('click', () => {
+        gdriveSelectorModal.classList.add('hidden');
+      });
+    }
+
+    if (gdriveCard) {
+      gdriveCard.addEventListener('click', async () => {
+        if (!activeFrame || !activeFrame.gdrive_folder_id || !activeFrame.gdrive_script_url) {
+          alert('Bingkai ini tidak dikonfigurasi dengan Google Drive!');
+          return;
+        }
+        
+        gdriveSelectorModal.classList.remove('hidden');
+        gdrivePhotoGrid.innerHTML = '';
+        gdriveLoader.style.display = 'flex';
+        gdriveError.style.display = 'none';
+        
+        const folderId = activeFrame.gdrive_folder_id;
+        const scriptUrl = activeFrame.gdrive_script_url;
+        
+        const fetchUrl = `${scriptUrl}?id=${folderId}`;
+        
+        try {
+          const response = await fetch(fetchUrl);
+          const data = await response.json();
+          
+          gdriveLoader.style.display = 'none';
+          
+          if (data && data.success && data.files) {
+            if (data.files.length === 0) {
+              gdriveError.style.display = 'block';
+              gdriveErrorMessage.textContent = 'Tidak ada file gambar di folder Google Drive tersebut.';
+              return;
+            }
+            
+            data.files.forEach(file => {
+              const item = document.createElement('div');
+              item.className = 'modal-frame-item';
+              
+              const thumbUrl = `https://drive.google.com/thumbnail?id=${file.id}&sz=w300`;
+              
+              item.innerHTML = `
+                <div class="modal-frame-thumb" style="aspect-ratio: 1/1; display:flex; align-items:center; justify-content:center; overflow:hidden; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                  <img src="${thumbUrl}" alt="${file.name}" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <h4 style="font-size:12px; margin-top:8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; color: var(--text-primary); font-weight: 500;">${file.name}</h4>
+              `;
+              
+              item.addEventListener('click', () => {
+                const proxyImageUrl = `api.php?action=gdrive_proxy&file_id=${file.id}`;
+                
+                closeCamera();
+                mediaType = 'image';
+                
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                  mediaElement = img;
+                  mediaWidth = img.naturalWidth;
+                  mediaHeight = img.naturalHeight;
+                  
+                  slots[activeSlotIndex].mediaType = 'image';
+                  slots[activeSlotIndex].mediaElement = img;
+                  slots[activeSlotIndex].mediaWidth = img.naturalWidth;
+                  slots[activeSlotIndex].mediaHeight = img.naturalHeight;
+                  slots[activeSlotIndex].name = file.name;
+                  slots[activeSlotIndex].typeLabel = 'FOTO';
+                  
+                  showActiveMediaBadge(file.name, 'FOTO');
+                  resetMediaTransformations();
+                  showQuickPanels();
+                  updateSlotThumbnails();
+                  
+                  document.querySelector('.tab-btn[data-tab="tab-adjust"]').click();
+                };
+                img.src = proxyImageUrl;
+                
+                gdriveSelectorModal.classList.add('hidden');
+              });
+              
+              gdrivePhotoGrid.appendChild(item);
+            });
+          } else {
+            gdriveError.style.display = 'block';
+            gdriveErrorMessage.textContent = 'Gagal memuat file: ' + (data.error || 'Terjadi kesalahan tidak dikenal.');
+          }
+        } catch (err) {
+          console.error(err);
+          gdriveLoader.style.display = 'none';
+          gdriveError.style.display = 'block';
+          gdriveErrorMessage.textContent = 'Gagal menghubungkan ke Google Drive proxy. Pastikan URL Apps Script Web App Anda benar dan disetel ke Public ("Anyone").';
+        }
+      });
     }
 
     // Slot selector buttons
