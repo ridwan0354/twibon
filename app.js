@@ -392,6 +392,15 @@ document.addEventListener('DOMContentLoaded', () => {
     startModal.classList.remove('hidden');
   }
 
+  // Central helper: always checks BOTH frame-specific and global GDrive config
+  function updateGDriveCardVisibility(frame) {
+    if (!gdriveCard) return;
+    const f = frame || activeFrame || {};
+    const hasLocal = f.gdrive_folder_id && f.gdrive_script_url;
+    const hasGlobal = globalConfig && globalConfig.gdrive_folder_id && globalConfig.gdrive_script_url;
+    gdriveCard.style.display = (hasLocal || hasGlobal) ? 'flex' : 'none';
+  }
+
   function selectFrame(frame) {
     activeFrame = frame;
     frameImage.src = frame.src;
@@ -405,14 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateSlotsVisibility(slotsCount);
     recalculateAllSlotsFitScale();
 
-    // Show or hide GDrive card depending on active frame properties or global configuration
-    const hasLocal = frame.gdrive_folder_id && frame.gdrive_script_url;
-    const hasGlobal = globalConfig && globalConfig.gdrive_folder_id && globalConfig.gdrive_script_url;
-    if (hasLocal || hasGlobal) {
-      gdriveCard.style.display = 'flex';
-    } else {
-      gdriveCard.style.display = 'none';
-    }
+    updateGDriveCardVisibility(frame);
   }
 
   function recalculateAllSlotsFitScale() {
@@ -657,11 +659,7 @@ document.addEventListener('DOMContentLoaded', () => {
               const updated = frames.find(f => f.id === frame.id);
               if (updated) {
                 activeFrame = updated;
-                if (activeFrame.gdrive_folder_id && activeFrame.gdrive_script_url) {
-                  gdriveCard.style.display = 'flex';
-                } else {
-                  gdriveCard.style.display = 'none';
-                }
+                updateGDriveCardVisibility(updated);
               }
             }
             await renderAdminFrameList();
@@ -1073,7 +1071,7 @@ document.addEventListener('DOMContentLoaded', () => {
               globalGdriveStatus.textContent = folderId ? '✅ Aktif' : 'Belum disetel';
               globalGdriveStatus.style.color = folderId ? '#34d399' : 'var(--text-muted)';
             }
-            if (gdriveCard) gdriveCard.style.display = folderId ? 'flex' : 'none';
+            updateGDriveCardVisibility();
             alert('Pengaturan Google Drive Global berhasil disimpan! Semua bingkai kini bisa menggunakan Google Drive.');
             if (scriptUrl) localStorage.setItem('last_gdrive_script_url', scriptUrl);
           } else {
@@ -1435,11 +1433,7 @@ document.addEventListener('DOMContentLoaded', () => {
               const updated = frames.find(f => f.id === frameId);
               if (updated) {
                 activeFrame = updated;
-                if (activeFrame.gdrive_folder_id && activeFrame.gdrive_script_url) {
-                  gdriveCard.style.display = 'flex';
-                } else {
-                  gdriveCard.style.display = 'none';
-                }
+                updateGDriveCardVisibility(updated);
               }
             }
             await renderEditorFrameSelector();
