@@ -111,6 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const gdriveError = document.getElementById('gdriveError');
   const gdriveErrorMessage = document.getElementById('gdriveErrorMessage');
   const gdrivePhotoGrid = document.getElementById('gdrivePhotoGrid');
+  const canvasLoadingOverlay = document.getElementById('canvasLoadingOverlay');
   const gdriveEditModal = document.getElementById('gdriveEditModal');
   const btnCloseGDriveEdit = document.getElementById('btnCloseGDriveEdit');
   const editGDriveFrameId = document.getElementById('editGDriveFrameId');
@@ -1559,9 +1560,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const proxyImageUrl = `api.php?action=gdrive_proxy&file_id=${file.id}`;
                 closeCamera();
                 mediaType = 'image';
+                gdriveSelectorModal.classList.add('hidden');
+
+                // Show canvas loading overlay while proxy downloads image
+                if (canvasLoadingOverlay) canvasLoadingOverlay.style.display = 'flex';
+
                 const img = new Image();
                 img.crossOrigin = 'anonymous';
                 img.onload = () => {
+                  if (canvasLoadingOverlay) canvasLoadingOverlay.style.display = 'none';
                   mediaElement = img;
                   mediaWidth = img.naturalWidth;
                   mediaHeight = img.naturalHeight;
@@ -1575,10 +1582,13 @@ document.addEventListener('DOMContentLoaded', () => {
                   resetMediaTransformations();
                   showQuickPanels();
                   updateSlotThumbnails();
-                  document.querySelector('.tab-btn[data-tab="tab-adjust"]').click();
+                  // Tetap di tab Media — user bisa langsung geser/zoom di canvas
+                };
+                img.onerror = () => {
+                  if (canvasLoadingOverlay) canvasLoadingOverlay.style.display = 'none';
+                  alert('Gagal mengunduh foto dari Google Drive. Silakan coba lagi.');
                 };
                 img.src = proxyImageUrl;
-                gdriveSelectorModal.classList.add('hidden');
               });
               photoGrid.appendChild(item);
             });
@@ -1854,9 +1864,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resetMediaTransformations();
         showQuickPanels();
         updateSlotThumbnails();
-        
-        // Direct to adjustment tab
-        document.querySelector('.tab-btn[data-tab="tab-adjust"]').click();
+        // Tetap di tab Media — user bisa langsung geser/zoom canvas
       };
       img.src = URL.createObjectURL(file);
     } else if (file.type.startsWith('video/')) {
@@ -1888,8 +1896,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateSlotThumbnails();
         
         slotVideo.play().catch(err => console.log('Autoplay blocked:', err));
-        
-        document.querySelector('.tab-btn[data-tab="tab-adjust"]').click();
+        // Tetap di tab Media — user bisa langsung geser/zoom canvas
       };
     }
   }
@@ -2089,11 +2096,8 @@ document.addEventListener('DOMContentLoaded', () => {
       showQuickPanels();
       updateSlotThumbnails();
       
-      // Close the stream
+      // Close the stream — tetap di tab Media, user bisa langsung geser/zoom
       closeCamera();
-      
-      // Navigate to adjustment tab
-      document.querySelector('.tab-btn[data-tab="tab-adjust"]').click();
     };
     capturedImg.src = photoDataUrl;
   }
@@ -2290,8 +2294,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         ctx.restore();
         
-        // If this slot is the active one AND the active tab is 'tab-adjust', draw outline aids!
-        if (idx === activeSlotIndex && activeTabId === 'tab-adjust') {
+        // If this slot is the active one AND user is adjusting (tab-adjust OR tab-media), draw outline aids!
+        if (idx === activeSlotIndex && (activeTabId === 'tab-adjust' || activeTabId === 'tab-media')) {
           // A. Draw a faint outline of the FULL photo boundaries (even cropped parts)
           ctx.save();
           ctx.translate(slotCenterX + slot.posX, slotCenterY + slot.posY);
