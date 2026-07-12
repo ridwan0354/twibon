@@ -552,41 +552,115 @@ document.addEventListener('DOMContentLoaded', () => {
     const frames = await getAllFrames();
     
     frames.forEach((frame, idx) => {
-      const item = document.createElement('div');
-      item.className = 'admin-frame-item';
+      const itemContainer = document.createElement('div');
+      itemContainer.className = 'admin-frame-item-container';
+      itemContainer.style.borderBottom = '1px solid var(--panel-border)';
+      itemContainer.style.padding = '12px 0';
       
-      item.innerHTML = `
-        <img src="${frame.src}" alt="${frame.name}">
-        <span class="frame-name">${frame.name}</span>
-        <div class="actions">
-          <button class="btn-action btn-edit-gdrive" title="Edit Google Drive Setting" style="color: #10b981; margin-right: 4px;">
-            <i class="fa-brands fa-google-drive"></i>
-          </button>
-          <button class="btn-action btn-move-up" title="Pindahkan Ke Atas" ${idx === 0 ? 'disabled style="opacity: 0.3;"' : ''}>
-            <i class="fa-solid fa-arrow-up"></i>
-          </button>
-          <button class="btn-action btn-move-down" title="Pindahkan Ke Bawah" ${idx === frames.length - 1 ? 'disabled style="opacity: 0.3;"' : ''}>
-            <i class="fa-solid fa-arrow-down"></i>
-          </button>
-          <button class="btn-action text-danger btn-delete" title="Hapus Bingkai" ${frame.isDefault ? 'disabled style="opacity: 0.3;"' : ''}>
-            <i class="fa-solid fa-trash-can"></i>
-          </button>
+      itemContainer.innerHTML = `
+        <div class="admin-frame-item" style="display: flex; align-items: center; justify-content: space-between;">
+          <img src="${frame.src}" alt="${frame.name}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid var(--panel-border);">
+          <span class="frame-name" style="flex: 1; margin-left: 12px; font-weight: 600; font-size: 13px;">${frame.name}</span>
+          <div class="actions" style="display: flex; gap: 4px;">
+            <button class="btn-action btn-edit-gdrive" title="Set Google Drive" style="color: #10b981; background: none; border: none; cursor: pointer; padding: 6px;">
+              <i class="fa-brands fa-google-drive"></i>
+            </button>
+            <button class="btn-action btn-move-up" title="Pindahkan Ke Atas" ${idx === 0 ? 'disabled style="opacity: 0.3;"' : ''} style="background: none; border: none; cursor: pointer; padding: 6px; color: var(--text-muted);">
+              <i class="fa-solid fa-arrow-up"></i>
+            </button>
+            <button class="btn-action btn-move-down" title="Pindahkan Ke Bawah" ${idx === frames.length - 1 ? 'disabled style="opacity: 0.3;"' : ''} style="background: none; border: none; cursor: pointer; padding: 6px; color: var(--text-muted);">
+              <i class="fa-solid fa-arrow-down"></i>
+            </button>
+            <button class="btn-action text-danger btn-delete" title="Hapus Bingkai" ${frame.isDefault ? 'disabled style="opacity: 0.3;"' : ''} style="background: none; border: none; cursor: pointer; padding: 6px;">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Inline GDrive Edit Form (hidden by default) -->
+        <div class="inline-gdrive-form" style="display: none; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; margin-top: 8px; border: 1px solid var(--panel-border);">
+          <div style="font-weight: 700; font-size: 12px; margin-bottom: 8px; color: #34d399; display: flex; align-items: center; gap: 6px;">
+            <i class="fa-brands fa-google-drive"></i> Pengaturan Google Drive
+          </div>
+          <div class="form-group" style="margin-bottom: 8px;">
+            <label style="font-size: 11px; color: var(--text-muted); display:block; margin-bottom: 4px; font-weight: 600;">ID Folder Google Drive:</label>
+            <input type="text" class="input-inline-folder-id form-control" style="font-size: 12px; padding: 8px; width: 100%; border-radius: 4px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--panel-border); color: var(--text-primary); box-sizing: border-box; outline: none;" value="${frame.gdrive_folder_id || ''}" placeholder="Contoh: 17691tD48Q1x4n...">
+          </div>
+          <div class="form-group" style="margin-bottom: 8px;">
+            <label style="font-size: 11px; color: var(--text-muted); display:block; margin-bottom: 4px; font-weight: 600;">URL Web App Google Apps Script:</label>
+            <input type="text" class="input-inline-script-url form-control" style="font-size: 12px; padding: 8px; width: 100%; border-radius: 4px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--panel-border); color: var(--text-primary); box-sizing: border-box; outline: none;" value="${frame.gdrive_script_url || ''}" placeholder="Contoh: https://script.google.com/...">
+          </div>
+          <button class="btn btn-primary btn-sm btn-save-inline-gdrive" style="font-size: 11px; padding: 8px 12px; width: 100%; font-weight: 700; cursor: pointer; border-radius: 4px; border: none; display: flex; align-items: center; justify-content: center; gap: 6px;"><i class="fa-solid fa-floppy-disk"></i> Simpan Google Drive</button>
         </div>
       `;
       
-      const btnEditGDrive = item.querySelector('.btn-edit-gdrive');
-      const btnUp = item.querySelector('.btn-move-up');
-      const btnDown = item.querySelector('.btn-move-down');
-      const btnDel = item.querySelector('.btn-delete');
+      const btnEditGDrive = itemContainer.querySelector('.btn-edit-gdrive');
+      const inlineForm = itemContainer.querySelector('.inline-gdrive-form');
+      const btnSaveInline = itemContainer.querySelector('.btn-save-inline-gdrive');
+      const inputFolderId = itemContainer.querySelector('.input-inline-folder-id');
+      const inputScriptUrl = itemContainer.querySelector('.input-inline-script-url');
       
+      const btnUp = itemContainer.querySelector('.btn-move-up');
+      const btnDown = itemContainer.querySelector('.btn-move-down');
+      const btnDel = itemContainer.querySelector('.btn-delete');
+      
+      // Toggle form inline
       btnEditGDrive.addEventListener('click', () => {
-        editGDriveFrameId.value = frame.id;
-        editGDriveFolderId.value = frame.gdrive_folder_id || '';
+        const isHidden = inlineForm.style.display === 'none';
+        inlineForm.style.display = isHidden ? 'block' : 'none';
         
-        const savedScriptUrl = localStorage.getItem('last_gdrive_script_url') || '';
-        editGDriveScriptUrl.value = frame.gdrive_script_url || savedScriptUrl;
+        if (isHidden && !inputScriptUrl.value) {
+          inputScriptUrl.value = localStorage.getItem('last_gdrive_script_url') || '';
+        }
+      });
+      
+      btnSaveInline.addEventListener('click', async () => {
+        const folderId = inputFolderId.value.trim();
+        const scriptUrl = inputScriptUrl.value.trim();
         
-        gdriveEditModal.classList.remove('hidden');
+        if (scriptUrl) {
+          localStorage.setItem('last_gdrive_script_url', scriptUrl);
+        }
+        
+        try {
+          const response = await fetch('api.php?action=edit_gdrive', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              id: frame.id,
+              gdrive_folder_id: folderId,
+              gdrive_script_url: scriptUrl,
+              password: '354313'
+            })
+          });
+          const data = await response.json();
+          if (response.ok && data.success) {
+            alert('Pengaturan Google Drive berhasil disimpan!');
+            inlineForm.style.display = 'none';
+            
+            const frames = await getAllFrames();
+            if (activeFrame && activeFrame.id === frame.id) {
+              const updated = frames.find(f => f.id === frame.id);
+              if (updated) {
+                activeFrame = updated;
+                if (activeFrame.gdrive_folder_id && activeFrame.gdrive_script_url) {
+                  gdriveCard.style.display = 'flex';
+                } else {
+                  gdriveCard.style.display = 'none';
+                }
+              }
+            }
+            await renderAdminFrameList();
+            await renderEditorFrameSelector();
+          } else {
+            alert('Gagal menyimpan pengaturan: ' + (data.error || 'Terjadi kesalahan.'));
+          }
+        } catch (err) {
+          console.error(err);
+          alert('Gagal menghubungkan ke server.');
+        }
       });
 
       if (idx > 0) {
@@ -599,7 +673,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnDel.addEventListener('click', () => handleDeleteFrame(frame.id));
       }
       
-      adminFrameItemsList.appendChild(item);
+      adminFrameItemsList.appendChild(itemContainer);
     });
   }
 
