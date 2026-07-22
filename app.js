@@ -143,6 +143,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const adminQrisFileInput = document.getElementById('adminQrisFileInput');
   const adminQrisFileName = document.getElementById('adminQrisFileName');
   const btnSaveQrisConfig = document.getElementById('btnSaveQrisConfig');
+  const togglePrintFeature = document.getElementById('togglePrintFeature');
+  const adminPrintStatusBadge = document.getElementById('adminPrintStatusBadge');
 
   // --- STATE ---
   let frameImage = new Image();
@@ -166,7 +168,24 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeSlotIndex = 0;
   let activeTabId = 'tab-media';
   let activeFrame = null;
-  let globalConfig = { gdrive_folder_id: '', gdrive_script_url: '' };
+  let globalConfig = { gdrive_folder_id: '', gdrive_script_url: '', print_enabled: true };
+
+  function applyPrintFeatureConfig(enabled) {
+    if (btnQuickExportPrint) {
+      btnQuickExportPrint.style.display = enabled ? 'flex' : 'none';
+    }
+    if (btnExportPrint) {
+      btnExportPrint.style.display = enabled ? 'block' : 'none';
+    }
+    if (togglePrintFeature) {
+      togglePrintFeature.checked = enabled;
+    }
+    if (adminPrintStatusBadge) {
+      adminPrintStatusBadge.textContent = enabled ? 'Aktif' : 'Nonaktif';
+      adminPrintStatusBadge.style.background = enabled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)';
+      adminPrintStatusBadge.style.color = enabled ? '#4ade80' : '#f87171';
+    }
+  }
   // GDrive folder navigation stack: [{id, name}]
   let gdriveFolderStack = [];
 
@@ -1067,6 +1086,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (printOrderQrisImg) printOrderQrisImg.src = configData.qris_image;
       }
+
+      // Apply Print Feature Toggle Config
+      applyPrintFeatureConfig(configData.print_enabled !== false);
     } catch (e) {
       console.warn('Could not load global config:', e);
     }
@@ -1115,6 +1137,34 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Gagal menyimpan: ' + (data.error || 'Terjadi kesalahan.'));
           }
         } catch (e) {
+          alert('Gagal menghubungkan ke server.');
+        }
+      });
+    }
+
+    // Admin: toggle print feature
+    if (togglePrintFeature) {
+      togglePrintFeature.addEventListener('change', async () => {
+        const isEnabled = togglePrintFeature.checked;
+        try {
+          const res = await fetch('api.php?action=save_config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ print_enabled: isEnabled, password: '354313' })
+          });
+          const data = await res.json();
+          if (data.success) {
+            globalConfig.print_enabled = isEnabled;
+            applyPrintFeatureConfig(isEnabled);
+            if (!isEnabled && printOrderModal && !printOrderModal.classList.contains('hidden')) {
+              printOrderModal.classList.add('hidden');
+            }
+          } else {
+            togglePrintFeature.checked = !isEnabled;
+            alert('Gagal mengubah status fitur cetak: ' + (data.error || 'Terjadi kesalahan.'));
+          }
+        } catch (e) {
+          togglePrintFeature.checked = !isEnabled;
           alert('Gagal menghubungkan ke server.');
         }
       });
@@ -1680,6 +1730,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- PRINT ORDER (CETAK FOTO) EVENTS ---
     const openPrintOrderModal = () => {
+      if (globalConfig && globalConfig.print_enabled === false) {
+        alert('Fitur cetak foto saat ini sedang dinonaktifkan oleh administrator.');
+        return;
+      }
+
       const hasMedia = slots.some(s => s.mediaElement);
       if (!hasMedia) {
         alert('Unggah foto/video atau gunakan kamera terlebih dahulu!');

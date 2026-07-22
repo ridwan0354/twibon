@@ -79,11 +79,18 @@ function read_frames() {
 // Function to read global config
 function read_config() {
     global $config_file;
+    $default = ["gdrive_folder_id" => "", "gdrive_script_url" => "", "print_enabled" => true];
     if (!file_exists($config_file)) {
-        return ["gdrive_folder_id" => "", "gdrive_script_url" => ""];
+        return $default;
     }
     $data = json_decode(file_get_contents($config_file), true);
-    return is_array($data) ? $data : ["gdrive_folder_id" => "", "gdrive_script_url" => ""];
+    if (!is_array($data)) {
+        return $default;
+    }
+    if (!isset($data['gdrive_folder_id'])) $data['gdrive_folder_id'] = "";
+    if (!isset($data['gdrive_script_url'])) $data['gdrive_script_url'] = "";
+    if (!isset($data['print_enabled'])) $data['print_enabled'] = true;
+    return $data;
 }
 
 // Function to write global config
@@ -216,6 +223,12 @@ if ($method === 'POST') {
     
     // Create Print Order (Public)
     if ($action === 'create_order') {
+        $config = read_config();
+        if (isset($config['print_enabled']) && !$config['print_enabled']) {
+            http_response_code(403);
+            echo json_encode(["error" => "Fitur cetak foto saat ini sedang dinonaktifkan oleh administrator."]);
+            exit();
+        }
         $name = isset($_POST['name']) ? trim($_POST['name']) : '';
         $whatsapp = isset($_POST['whatsapp']) ? trim($_POST['whatsapp']) : '';
         $payment_method = isset($_POST['payment_method']) ? trim($_POST['payment_method']) : '';
@@ -405,8 +418,9 @@ if ($method === 'POST') {
         $config = read_config();
         if (isset($input['gdrive_folder_id'])) $config['gdrive_folder_id'] = trim($input['gdrive_folder_id']);
         if (isset($input['gdrive_script_url'])) $config['gdrive_script_url'] = trim($input['gdrive_script_url']);
+        if (isset($input['print_enabled'])) $config['print_enabled'] = (bool)$input['print_enabled'];
         write_config($config);
-        echo json_encode(["success" => true]);
+        echo json_encode(["success" => true, "config" => $config]);
         exit();
     }
 
