@@ -506,11 +506,6 @@ if ($method === 'POST') {
         
         foreach ($frames as $frame) {
             if ($frame['id'] === $id) {
-                if ($frame['isDefault']) {
-                    http_response_code(403);
-                    echo json_encode(["error" => "Built-in default frame cannot be deleted."]);
-                    exit();
-                }
                 // Delete physical file
                 $filepath = __DIR__ . '/' . $frame['src'];
                 if (file_exists($filepath)) {

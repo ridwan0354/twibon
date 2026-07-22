@@ -605,7 +605,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <button class="btn-action btn-move-down" title="Pindahkan Ke Bawah" ${idx === frames.length - 1 ? 'disabled style="opacity: 0.3;"' : ''} style="background: none; border: none; cursor: pointer; padding: 6px; color: var(--text-muted);">
               <i class="fa-solid fa-arrow-down"></i>
             </button>
-            <button class="btn-action text-danger btn-delete" title="Hapus Bingkai" ${frame.isDefault ? 'disabled style="opacity: 0.3;"' : ''} style="background: none; border: none; cursor: pointer; padding: 6px;">
+            <button class="btn-action text-danger btn-delete" title="Hapus Bingkai" style="background: none; border: none; cursor: pointer; padding: 6px;">
               <i class="fa-solid fa-trash-can"></i>
             </button>
           </div>
@@ -699,9 +699,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (idx < frames.length - 1) {
         btnDown.addEventListener('click', () => moveFrameOrder(frame.id, 1));
       }
-      if (!frame.isDefault) {
-        btnDel.addEventListener('click', () => handleDeleteFrame(frame.id));
-      }
+      btnDel.addEventListener('click', () => handleDeleteFrame(frame.id));
       
       adminFrameItemsList.appendChild(itemContainer);
     });
@@ -760,6 +758,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const data = await response.json();
         if (response.ok && data.success) {
+          if (activeFrame && activeFrame.id === frameId) {
+            const remainingFrames = await getAllFrames();
+            if (remainingFrames.length > 0) {
+              selectFrame(remainingFrames[0]);
+            } else {
+              activeFrame = null;
+              frameImage.src = '';
+            }
+          }
           await renderAdminFrameList();
           await renderEditorFrameSelector();
         } else {
