@@ -509,7 +509,7 @@ if ($method === 'POST') {
                 // Delete physical file
                 $filepath = __DIR__ . '/' . $frame['src'];
                 if (file_exists($filepath)) {
-                    unlink($filepath);
+                    @unlink($filepath);
                 }
                 $found = true;
             } else {
