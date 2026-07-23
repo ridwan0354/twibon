@@ -1081,6 +1081,12 @@ input[type="range"]::-webkit-slider-thumb:hover {
   }
 }
 
+@media (max-width: 768px) {
+  .app-header {
+    display: none !important;
+  }
+}
+
 @media (max-width: 480px) {
   body {
     padding: 0;
