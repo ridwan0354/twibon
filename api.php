@@ -86,7 +86,9 @@ function read_config() {
         "wa_api_url" => "https://waa.galipatsistem.com/api",
         "wa_key" => "72cff180-75d6-4dfb-a484-4b9b817d47a1",
         "auto_wa_on_complete" => true,
-        "auto_wa_on_order" => false
+        "auto_wa_on_order" => false,
+        "wa_template_complete" => "Halo Kak {name},\n\nFoto Twibbon Anda sudah *SELESAI DICETAK* 🖨️✨\nSilakan diambil di meja panitia/operator.\n\nTerima kasih telah berpartisipasi!",
+        "wa_template_order" => "Halo Kak {name},\n\nPesanan cetak foto Twibbon Anda (ID: {order_id}) telah berhasil diterima! 📋\nKami akan menginfokan kembali jika foto Anda sudah selesai dicetak. Terima kasih!"
     ];
     if (!file_exists($config_file)) {
         return $default;
@@ -122,7 +124,14 @@ function send_order_wa($order, $customText = null, $sendMedia = true) {
     if ($customText !== null && $customText !== '') {
         $caption = $customText;
     } else {
-        $caption = "Halo Kak *" . $order['name'] . "*,\n\nFoto Twibbon Anda sudah *SELESAI DICETAK* 🖨️✨\nSilakan diambil di meja panitia/operator.\n\nTerima kasih telah berpartisipasi!";
+        $tpl = !empty($config['wa_template_complete']) 
+            ? $config['wa_template_complete'] 
+            : "Halo Kak {name},\n\nFoto Twibbon Anda sudah *SELESAI DICETAK* 🖨️✨\nSilakan diambil di meja panitia/operator.\n\nTerima kasih telah berpartisipasi!";
+        $caption = str_replace(
+            ['{name}', '{order_id}'], 
+            [isset($order['name']) ? $order['name'] : '', isset($order['id']) ? $order['id'] : ''], 
+            $tpl
+        );
     }
 
     if ($sendMedia && !empty($twibbonPath) && file_exists($twibbonPath)) {
@@ -384,7 +393,14 @@ if ($method === 'POST') {
         $config = read_config();
         $wa_auto_sent = false;
         if (!empty($config['auto_wa_on_order'])) {
-            $confirmText = "Halo Kak *" . $name . "*,\n\nPesanan cetak foto Twibbon Anda (ID: *" . $new_order['id'] . "*) telah berhasil diterima! 📋\nKami akan menginfokan kembali jika foto Anda sudah selesai dicetak. Terima kasih!";
+            $tplOrder = !empty($config['wa_template_order']) 
+                ? $config['wa_template_order'] 
+                : "Halo Kak {name},\n\nPesanan cetak foto Twibbon Anda (ID: {order_id}) telah berhasil diterima! 📋\nKami akan menginfokan kembali jika foto Anda sudah selesai dicetak. Terima kasih!";
+            $confirmText = str_replace(
+                ['{name}', '{order_id}'], 
+                [$name, $new_order['id']], 
+                $tplOrder
+            );
             send_order_wa($new_order, $confirmText, false);
             $wa_auto_sent = true;
         }
@@ -548,6 +564,8 @@ if ($method === 'POST') {
         if (isset($input['wa_key'])) $config['wa_key'] = trim($input['wa_key']);
         if (isset($input['auto_wa_on_complete'])) $config['auto_wa_on_complete'] = (bool)$input['auto_wa_on_complete'];
         if (isset($input['auto_wa_on_order'])) $config['auto_wa_on_order'] = (bool)$input['auto_wa_on_order'];
+        if (isset($input['wa_template_complete'])) $config['wa_template_complete'] = trim($input['wa_template_complete']);
+        if (isset($input['wa_template_order'])) $config['wa_template_order'] = trim($input['wa_template_order']);
         write_config($config);
         echo json_encode(["success" => true, "config" => $config]);
         exit();

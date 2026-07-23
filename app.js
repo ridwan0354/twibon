@@ -149,6 +149,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputWaKey = document.getElementById('inputWaKey');
   const toggleAutoWaComplete = document.getElementById('toggleAutoWaComplete');
   const toggleAutoWaOrder = document.getElementById('toggleAutoWaOrder');
+  const inputWaTplComplete = document.getElementById('inputWaTplComplete');
+  const inputWaTplOrder = document.getElementById('inputWaTplOrder');
   const btnSaveWaConfig = document.getElementById('btnSaveWaConfig');
 
   // --- STATE ---
@@ -1100,6 +1102,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (inputWaKey) inputWaKey.value = configData.wa_key || '72cff180-75d6-4dfb-a484-4b9b817d47a1';
       if (toggleAutoWaComplete) toggleAutoWaComplete.checked = configData.auto_wa_on_complete !== false;
       if (toggleAutoWaOrder) toggleAutoWaOrder.checked = configData.auto_wa_on_order === true;
+      if (inputWaTplComplete) inputWaTplComplete.value = configData.wa_template_complete || 'Halo Kak {name},\n\nFoto Twibbon Anda sudah *SELESAI DICETAK* 🖨️✨\nSilakan diambil di meja panitia/operator.\n\nTerima kasih telah berpartisipasi!';
+      if (inputWaTplOrder) inputWaTplOrder.value = configData.wa_template_order || 'Halo Kak {name},\n\nPesanan cetak foto Twibbon Anda (ID: {order_id}) telah berhasil diterima! 📋\nKami akan menginfokan kembali jika foto Anda sudah selesai dicetak. Terima kasih!';
     } catch (e) {
       console.warn('Could not load global config:', e);
     }
@@ -1188,6 +1192,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const waKey = inputWaKey ? inputWaKey.value.trim() : '';
         const autoComplete = toggleAutoWaComplete ? toggleAutoWaComplete.checked : true;
         const autoOrder = toggleAutoWaOrder ? toggleAutoWaOrder.checked : false;
+        const tplComplete = inputWaTplComplete ? inputWaTplComplete.value.trim() : '';
+        const tplOrder = inputWaTplOrder ? inputWaTplOrder.value.trim() : '';
 
         try {
           const res = await fetch('api.php?action=save_config', {
@@ -1198,6 +1204,8 @@ document.addEventListener('DOMContentLoaded', () => {
               wa_key: waKey,
               auto_wa_on_complete: autoComplete,
               auto_wa_on_order: autoOrder,
+              wa_template_complete: tplComplete,
+              wa_template_order: tplOrder,
               password: '354313'
             })
           });
