@@ -678,9 +678,6 @@
               <button class="btn btn-secondary" onclick="sendWaAuto('${order.id}')" title="Kirim WA Otomatis via API Gateway" style="background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); font-size: 12px; padding: 6px 12px;">
                 <i class="fa-brands fa-whatsapp" style="font-size:15px;"></i> Kirim WA (API)
               </button>
-              <a href="${formatWhatsappUrl(order.whatsapp, order.name)}" target="_blank" class="btn btn-secondary" title="Buka WA Web (Manual)" style="opacity: 0.65; font-size: 11px; padding: 6px 8px;">
-                <i class="fa-solid fa-up-right-from-square"></i> Manual
-              </a>
               ${actionBtn}
               <button class="btn btn-secondary" onclick="deleteOrder('${order.id}')" style="flex:0; padding:6px 10px; color:var(--danger);" title="Hapus Dari Monitor">
                 <i class="fa-solid fa-trash-can"></i>
