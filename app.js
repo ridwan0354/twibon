@@ -145,6 +145,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnSaveQrisConfig = document.getElementById('btnSaveQrisConfig');
   const togglePrintFeature = document.getElementById('togglePrintFeature');
   const adminPrintStatusBadge = document.getElementById('adminPrintStatusBadge');
+  const inputWaApiUrl = document.getElementById('inputWaApiUrl');
+  const inputWaKey = document.getElementById('inputWaKey');
+  const toggleAutoWaComplete = document.getElementById('toggleAutoWaComplete');
+  const toggleAutoWaOrder = document.getElementById('toggleAutoWaOrder');
+  const btnSaveWaConfig = document.getElementById('btnSaveWaConfig');
 
   // --- STATE ---
   let frameImage = new Image();
@@ -1089,6 +1094,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Apply Print Feature Toggle Config
       applyPrintFeatureConfig(configData.print_enabled !== false);
+
+      // Populate WA Gateway Config
+      if (inputWaApiUrl) inputWaApiUrl.value = configData.wa_api_url || 'https://waa.galipatsistem.com/api';
+      if (inputWaKey) inputWaKey.value = configData.wa_key || '72cff180-75d6-4dfb-a484-4b9b817d47a1';
+      if (toggleAutoWaComplete) toggleAutoWaComplete.checked = configData.auto_wa_on_complete !== false;
+      if (toggleAutoWaOrder) toggleAutoWaOrder.checked = configData.auto_wa_on_order === true;
     } catch (e) {
       console.warn('Could not load global config:', e);
     }
@@ -1165,6 +1176,39 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         } catch (e) {
           togglePrintFeature.checked = !isEnabled;
+          alert('Gagal menghubungkan ke server.');
+        }
+      });
+    }
+
+    // Admin: save WhatsApp Gateway API config
+    if (btnSaveWaConfig) {
+      btnSaveWaConfig.addEventListener('click', async () => {
+        const waApiUrl = inputWaApiUrl ? inputWaApiUrl.value.trim() : '';
+        const waKey = inputWaKey ? inputWaKey.value.trim() : '';
+        const autoComplete = toggleAutoWaComplete ? toggleAutoWaComplete.checked : true;
+        const autoOrder = toggleAutoWaOrder ? toggleAutoWaOrder.checked : false;
+
+        try {
+          const res = await fetch('api.php?action=save_config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              wa_api_url: waApiUrl,
+              wa_key: waKey,
+              auto_wa_on_complete: autoComplete,
+              auto_wa_on_order: autoOrder,
+              password: '354313'
+            })
+          });
+          const data = await res.json();
+          if (data.success) {
+            globalConfig = Object.assign(globalConfig, data.config || {});
+            alert('✅ Pengaturan WhatsApp Gateway API berhasil disimpan!');
+          } else {
+            alert('Gagal menyimpan: ' + (data.error || 'Terjadi kesalahan.'));
+          }
+        } catch (e) {
           alert('Gagal menghubungkan ke server.');
         }
       });

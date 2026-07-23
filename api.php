@@ -79,7 +79,15 @@ function read_frames() {
 // Function to read global config
 function read_config() {
     global $config_file;
-    $default = ["gdrive_folder_id" => "", "gdrive_script_url" => "", "print_enabled" => true];
+    $default = [
+        "gdrive_folder_id" => "",
+        "gdrive_script_url" => "",
+        "print_enabled" => true,
+        "wa_api_url" => "https://waa.galipatsistem.com/api",
+        "wa_key" => "72cff180-75d6-4dfb-a484-4b9b817d47a1",
+        "auto_wa_on_complete" => true,
+        "auto_wa_on_order" => false
+    ];
     if (!file_exists($config_file)) {
         return $default;
     }
@@ -87,10 +95,80 @@ function read_config() {
     if (!is_array($data)) {
         return $default;
     }
-    if (!isset($data['gdrive_folder_id'])) $data['gdrive_folder_id'] = "";
-    if (!isset($data['gdrive_script_url'])) $data['gdrive_script_url'] = "";
-    if (!isset($data['print_enabled'])) $data['print_enabled'] = true;
-    return $data;
+    return array_merge($default, $data);
+}
+
+// Function to send WhatsApp message/media via Gateway API
+function send_order_wa($order, $customText = null, $sendMedia = true) {
+    $config = read_config();
+    $waKey = !empty($config['wa_key']) ? $config['wa_key'] : '72cff180-75d6-4dfb-a484-4b9b817d47a1';
+    $baseUrl = !empty($config['wa_api_url']) ? rtrim($config['wa_api_url'], '/') : 'https://waa.galipatsistem.com/api';
+    
+    if (empty($order['whatsapp'])) {
+        return ["success" => false, "error" => "Nomor WhatsApp tidak valid."];
+    }
+
+    $clean = preg_replace('/[^0-9]/', '', $order['whatsapp']);
+    if (strpos($clean, '0') === 0) {
+        $clean = '62' . substr($clean, 1);
+    }
+    if (strpos($clean, '62') !== 0) {
+        $clean = '62' . $clean;
+    }
+    $jid = $clean . '@s.whatsapp.net';
+
+    $twibbonPath = !empty($order['twibbon_image']) ? __DIR__ . '/' . $order['twibbon_image'] : '';
+
+    if ($customText !== null && $customText !== '') {
+        $caption = $customText;
+    } else {
+        $caption = "Halo Kak *" . $order['name'] . "*,\n\nFoto Twibbon Anda sudah *SELESAI DICETAK* 🖨️✨\nSilakan diambil di meja panitia/operator.\n\nTerima kasih telah berpartisipasi!";
+    }
+
+    if ($sendMedia && !empty($twibbonPath) && file_exists($twibbonPath)) {
+        $mimeType = mime_content_type($twibbonPath) ?: 'image/png';
+        $fileData = base64_encode(file_get_contents($twibbonPath));
+        $dataUrl = "data:" . $mimeType . ";base64," . $fileData;
+        $fileName = basename($twibbonPath);
+
+        $payload = [
+            "waKey" => $waKey,
+            "id" => $jid,
+            "caption" => $caption,
+            "fileName" => $fileName,
+            "mimeType" => $mimeType,
+            "dataUrl" => $dataUrl
+        ];
+        $endpoint = '/send-media';
+    } else {
+        $payload = [
+            "waKey" => $waKey,
+            "id" => $jid,
+            "text" => $caption,
+            "userId" => null
+        ];
+        $endpoint = '/send-message';
+    }
+
+    $ch = curl_init($baseUrl . $endpoint);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+    $response = curl_exec($ch);
+    $err = curl_error($ch);
+    curl_close($ch);
+
+    if ($err) {
+        return ["success" => false, "error" => "Curl error: " . $err];
+    }
+    
+    $resData = json_decode($response, true);
+    if (is_array($resData)) {
+        return array_merge(["success" => true], $resData);
+    }
+    return ["success" => true, "raw_response" => $response];
 }
 
 // Function to write global config
@@ -302,7 +380,16 @@ if ($method === 'POST') {
         $orders[] = $new_order;
         write_orders($orders);
 
-        echo json_encode(["success" => true, "order" => $new_order]);
+        // Auto send WA on order creation if enabled
+        $config = read_config();
+        $wa_auto_sent = false;
+        if (!empty($config['auto_wa_on_order'])) {
+            $confirmText = "Halo Kak *" . $name . "*,\n\nPesanan cetak foto Twibbon Anda (ID: *" . $new_order['id'] . "*) telah berhasil diterima! 📋\nKami akan menginfokan kembali jika foto Anda sudah selesai dicetak. Terima kasih!";
+            send_order_wa($new_order, $confirmText, false);
+            $wa_auto_sent = true;
+        }
+
+        echo json_encode(["success" => true, "order" => $new_order, "wa_auto_sent" => $wa_auto_sent]);
         exit();
     }
 
@@ -354,22 +441,60 @@ if ($method === 'POST') {
         }
 
         $orders = read_orders();
-        $found = false;
+        $foundOrder = null;
         foreach ($orders as &$order) {
             if ($order['id'] === $id) {
                 $order['status'] = $status;
-                $found = true;
+                $foundOrder = $order;
                 break;
             }
         }
 
-        if ($found) {
+        if ($foundOrder) {
             write_orders($orders);
-            echo json_encode(["success" => true]);
+            $config = read_config();
+            $wa_result = null;
+            if ($status === 'completed' && !empty($config['auto_wa_on_complete'])) {
+                $wa_result = send_order_wa($foundOrder);
+            }
+            echo json_encode(["success" => true, "wa_result" => $wa_result]);
         } else {
             http_response_code(404);
             echo json_encode(["error" => "Order not found."]);
         }
+        exit();
+    }
+
+    // Send WA Notification Manually (Admin/Operator)
+    if ($action === 'send_wa') {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $id = isset($input['id']) ? trim($input['id']) : '';
+        $customText = isset($input['text']) ? trim($input['text']) : null;
+        $sendMedia = isset($input['send_media']) ? (bool)$input['send_media'] : true;
+
+        if (empty($id)) {
+            http_response_code(400);
+            echo json_encode(["error" => "Order ID is required."]);
+            exit();
+        }
+
+        $orders = read_orders();
+        $targetOrder = null;
+        foreach ($orders as $order) {
+            if ($order['id'] === $id) {
+                $targetOrder = $order;
+                break;
+            }
+        }
+
+        if (!$targetOrder) {
+            http_response_code(404);
+            echo json_encode(["error" => "Order not found."]);
+            exit();
+        }
+
+        $res = send_order_wa($targetOrder, $customText, $sendMedia);
+        echo json_encode($res);
         exit();
     }
 
@@ -419,6 +544,10 @@ if ($method === 'POST') {
         if (isset($input['gdrive_folder_id'])) $config['gdrive_folder_id'] = trim($input['gdrive_folder_id']);
         if (isset($input['gdrive_script_url'])) $config['gdrive_script_url'] = trim($input['gdrive_script_url']);
         if (isset($input['print_enabled'])) $config['print_enabled'] = (bool)$input['print_enabled'];
+        if (isset($input['wa_api_url'])) $config['wa_api_url'] = trim($input['wa_api_url']);
+        if (isset($input['wa_key'])) $config['wa_key'] = trim($input['wa_key']);
+        if (isset($input['auto_wa_on_complete'])) $config['auto_wa_on_complete'] = (bool)$input['auto_wa_on_complete'];
+        if (isset($input['auto_wa_on_order'])) $config['auto_wa_on_order'] = (bool)$input['auto_wa_on_order'];
         write_config($config);
         echo json_encode(["success" => true, "config" => $config]);
         exit();

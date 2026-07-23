@@ -674,12 +674,15 @@
               ${previewHTML}
             </div>
 
-            <div class="card-footer">
-              <a href="${formatWhatsappUrl(order.whatsapp, order.name)}" target="_blank" class="btn btn-secondary" title="Hubungi WA">
-                <i class="fa-brands fa-whatsapp text-success" style="font-size:16px;"></i> Chat WA
+            <div class="card-footer" style="flex-wrap: wrap; gap: 6px;">
+              <button class="btn btn-secondary" onclick="sendWaAuto('${order.id}')" title="Kirim WA Otomatis via API Gateway" style="background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); font-size: 12px; padding: 6px 12px;">
+                <i class="fa-brands fa-whatsapp" style="font-size:15px;"></i> Kirim WA (API)
+              </button>
+              <a href="${formatWhatsappUrl(order.whatsapp, order.name)}" target="_blank" class="btn btn-secondary" title="Buka WA Web (Manual)" style="opacity: 0.65; font-size: 11px; padding: 6px 8px;">
+                <i class="fa-solid fa-up-right-from-square"></i> Manual
               </a>
               ${actionBtn}
-              <button class="btn btn-secondary" onclick="deleteOrder('${order.id}')" style="flex:0; padding:8px 12px; color:var(--danger);" title="Hapus Dari Monitor">
+              <button class="btn btn-secondary" onclick="deleteOrder('${order.id}')" style="flex:0; padding:6px 10px; color:var(--danger);" title="Hapus Dari Monitor">
                 <i class="fa-solid fa-trash-can"></i>
               </button>
             </div>
@@ -730,6 +733,35 @@
         win.document.close();
       });
 
+      // Send WA Automatically via Gateway API
+      window.sendWaAuto = async function(id) {
+        const pass = getPassword();
+        if (pass !== '354313') {
+          openLoginModal();
+          return;
+        }
+
+        if (!confirm('Kirim notifikasi & foto Twibbon ke WhatsApp pelanggan secara otomatis via Gateway API?')) {
+          return;
+        }
+
+        try {
+          const res = await fetch('../api.php?action=send_wa', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, send_media: true, password: pass })
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            alert('✅ Pesan WhatsApp & gambar Twibbon berhasil terkirim ke WhatsApp pelanggan!');
+          } else {
+            alert('⚠️ Gagal mengirim WA via API: ' + (data.error || JSON.stringify(data)));
+          }
+        } catch (e) {
+          alert('Gagal menghubungi server.');
+        }
+      };
+
       // Update Order Status (Pending <-> Completed)
       window.markStatus = async function(id, newStatus) {
         const pass = getPassword();
@@ -746,6 +778,13 @@
           });
           const data = await res.json();
           if (res.ok && data.success) {
+            if (newStatus === 'completed') {
+              if (data.wa_result && data.wa_result.success) {
+                alert('✅ Status diperbarui menjadi SELESAI, dan foto Twibbon telah dikirim otomatis ke WhatsApp pelanggan!');
+              } else if (data.wa_result && data.wa_result.error) {
+                alert('Status diperbarui menjadi SELESAI, namun pengiriman WA otomatis gagal: ' + data.wa_result.error);
+              }
+            }
             loadOrders();
           } else {
             alert('Gagal memperbarui status: ' + (data.error || 'Terjadi kesalahan.'));
