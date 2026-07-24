@@ -152,6 +152,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputWaTplComplete = document.getElementById('inputWaTplComplete');
   const inputWaTplOrder = document.getElementById('inputWaTplOrder');
   const btnSaveWaConfig = document.getElementById('btnSaveWaConfig');
+  const selectWaProvider = document.getElementById('selectWaProvider');
+  const groupWaaConfig = document.getElementById('groupWaaConfig');
+  const groupFonnteConfig = document.getElementById('groupFonnteConfig');
+  const inputFonnteToken = document.getElementById('inputFonnteToken');
+  const inputTestWaTarget = document.getElementById('inputTestWaTarget');
+  const btnTestWa = document.getElementById('btnTestWa');
+  const testWaResult = document.getElementById('testWaResult');
 
   // --- STATE ---
   let frameImage = new Image();
@@ -1098,12 +1105,17 @@ document.addEventListener('DOMContentLoaded', () => {
       applyPrintFeatureConfig(configData.print_enabled !== false);
 
       // Populate WA Gateway Config
+      const provider = configData.wa_provider || 'waa';
+      if (selectWaProvider) selectWaProvider.value = provider;
       if (inputWaApiUrl) inputWaApiUrl.value = configData.wa_api_url || 'https://waa.galipatsistem.com/api';
       if (inputWaKey) inputWaKey.value = configData.wa_key || '72cff180-75d6-4dfb-a484-4b9b817d47a1';
+      if (inputFonnteToken) inputFonnteToken.value = configData.fonnte_token || '';
       if (toggleAutoWaComplete) toggleAutoWaComplete.checked = configData.auto_wa_on_complete !== false;
       if (toggleAutoWaOrder) toggleAutoWaOrder.checked = configData.auto_wa_on_order === true;
       if (inputWaTplComplete) inputWaTplComplete.value = configData.wa_template_complete || 'Halo Kak {name},\n\nFoto Twibbon Anda sudah *SELESAI DICETAK* 🖨️✨\nSilakan diambil di meja panitia/operator.\n\nTerima kasih telah berpartisipasi!';
       if (inputWaTplOrder) inputWaTplOrder.value = configData.wa_template_order || 'Halo Kak {name},\n\nPesanan cetak foto Twibbon Anda (ID: {order_id}) telah berhasil diterima! 📋\nKami akan menginfokan kembali jika foto Anda sudah selesai dicetak. Terima kasih!';
+
+      updateWaProviderUI(provider);
     } catch (e) {
       console.warn('Could not load global config:', e);
     }
@@ -1185,11 +1197,24 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
+    function updateWaProviderUI(p) {
+      if (groupWaaConfig) groupWaaConfig.style.display = (p === 'fonnte') ? 'none' : 'block';
+      if (groupFonnteConfig) groupFonnteConfig.style.display = (p === 'fonnte') ? 'block' : 'none';
+    }
+
+    if (selectWaProvider) {
+      selectWaProvider.addEventListener('change', (e) => {
+        updateWaProviderUI(e.target.value);
+      });
+    }
+
     // Admin: save WhatsApp Gateway API config
     if (btnSaveWaConfig) {
       btnSaveWaConfig.addEventListener('click', async () => {
+        const provider = selectWaProvider ? selectWaProvider.value : 'waa';
         const waApiUrl = inputWaApiUrl ? inputWaApiUrl.value.trim() : '';
         const waKey = inputWaKey ? inputWaKey.value.trim() : '';
+        const fonnteToken = inputFonnteToken ? inputFonnteToken.value.trim() : '';
         const autoComplete = toggleAutoWaComplete ? toggleAutoWaComplete.checked : true;
         const autoOrder = toggleAutoWaOrder ? toggleAutoWaOrder.checked : false;
         const tplComplete = inputWaTplComplete ? inputWaTplComplete.value.trim() : '';
@@ -1200,8 +1225,10 @@ document.addEventListener('DOMContentLoaded', () => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+              wa_provider: provider,
               wa_api_url: waApiUrl,
               wa_key: waKey,
+              fonnte_token: fonnteToken,
               auto_wa_on_complete: autoComplete,
               auto_wa_on_order: autoOrder,
               wa_template_complete: tplComplete,
@@ -1218,6 +1245,69 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         } catch (e) {
           alert('Gagal menghubungkan ke server.');
+        }
+      });
+    }
+
+    // Admin: Test send WhatsApp message
+    if (btnTestWa) {
+      btnTestWa.addEventListener('click', async () => {
+        const target = inputTestWaTarget ? inputTestWaTarget.value.trim() : '';
+        if (!target) {
+          alert('Masukkan nomor WhatsApp tujuan tes terlebih dahulu.');
+          if (inputTestWaTarget) inputTestWaTarget.focus();
+          return;
+        }
+
+        if (testWaResult) {
+          testWaResult.textContent = '⏳ Mengirim pesan tes...';
+          testWaResult.style.color = '#38bdf8';
+        }
+        btnTestWa.disabled = true;
+
+        try {
+          const provider = selectWaProvider ? selectWaProvider.value : 'waa';
+          const waApiUrl = inputWaApiUrl ? inputWaApiUrl.value.trim() : '';
+          const waKey = inputWaKey ? inputWaKey.value.trim() : '';
+          const fonnteToken = inputFonnteToken ? inputFonnteToken.value.trim() : '';
+
+          await fetch('api.php?action=save_config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              wa_provider: provider,
+              wa_api_url: waApiUrl,
+              wa_key: waKey,
+              fonnte_token: fonnteToken,
+              password: '354313'
+            })
+          });
+
+          const res = await fetch('api.php?action=test_wa', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target: target, password: '354313' })
+          });
+          const data = await res.json();
+
+          if (data.success) {
+            if (testWaResult) {
+              testWaResult.textContent = '✅ Pesan tes berhasil dikirim! Silakan cek WhatsApp Anda.';
+              testWaResult.style.color = '#34d399';
+            }
+          } else {
+            if (testWaResult) {
+              testWaResult.textContent = '❌ Gagal mengirim tes: ' + (data.error || 'Terjadi kesalahan');
+              testWaResult.style.color = '#f87171';
+            }
+          }
+        } catch (e) {
+          if (testWaResult) {
+            testWaResult.textContent = '❌ Terjadi kesalahan koneksi ke server.';
+            testWaResult.style.color = '#f87171';
+          }
+        } finally {
+          btnTestWa.disabled = false;
         }
       });
     }

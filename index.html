@@ -434,13 +434,33 @@
                   <span id="adminWaStatusBadge" style="font-size: 10px; padding: 2px 8px; border-radius: 99px; font-weight: 600; background: rgba(34, 197, 94, 0.2); color: #4ade80;">Terhubung</span>
                 </div>
                 
-                <div class="form-group" style="margin-bottom: 8px;">
-                  <label style="font-size: 11px; color: var(--text-muted); display:block; margin-bottom: 4px; font-weight: 600;">Base URL API:</label>
-                  <input type="text" id="inputWaApiUrl" class="form-control" style="font-size: 12px; padding: 8px; background: rgba(15,23,42,0.6); border: 1px solid var(--panel-border); color: var(--text-primary); border-radius: 4px; width: 100%; box-sizing: border-box; outline: none;" value="https://waa.galipatsistem.com/api" placeholder="https://waa.galipatsistem.com/api">
-                </div>
                 <div class="form-group" style="margin-bottom: 10px;">
-                  <label style="font-size: 11px; color: var(--text-muted); display:block; margin-bottom: 4px; font-weight: 600;">Device API Key (waKey):</label>
-                  <input type="text" id="inputWaKey" class="form-control" style="font-size: 12px; padding: 8px; background: rgba(15,23,42,0.6); border: 1px solid var(--panel-border); color: var(--text-primary); border-radius: 4px; width: 100%; box-sizing: border-box; outline: none;" value="72cff180-75d6-4dfb-a484-4b9b817d47a1" placeholder="Masukkan API Key...">
+                  <label style="font-size: 11px; color: var(--text-muted); display:block; margin-bottom: 4px; font-weight: 600;">Layanan Provider WA:</label>
+                  <select id="selectWaProvider" class="form-control" style="font-size: 12px; padding: 8px; background: rgba(15,23,42,0.8); border: 1px solid var(--panel-border); color: var(--text-primary); border-radius: 4px; width: 100%; box-sizing: border-box; outline: none;">
+                    <option value="waa" selected>Custom WA Gateway (WAA API)</option>
+                    <option value="fonnte">Fonnte.com (API Fonnte)</option>
+                  </select>
+                </div>
+
+                <!-- Custom WAA Config Group -->
+                <div id="groupWaaConfig">
+                  <div class="form-group" style="margin-bottom: 8px;">
+                    <label style="font-size: 11px; color: var(--text-muted); display:block; margin-bottom: 4px; font-weight: 600;">Base URL API:</label>
+                    <input type="text" id="inputWaApiUrl" class="form-control" style="font-size: 12px; padding: 8px; background: rgba(15,23,42,0.6); border: 1px solid var(--panel-border); color: var(--text-primary); border-radius: 4px; width: 100%; box-sizing: border-box; outline: none;" value="https://waa.galipatsistem.com/api" placeholder="https://waa.galipatsistem.com/api">
+                  </div>
+                  <div class="form-group" style="margin-bottom: 10px;">
+                    <label style="font-size: 11px; color: var(--text-muted); display:block; margin-bottom: 4px; font-weight: 600;">Device API Key (waKey):</label>
+                    <input type="text" id="inputWaKey" class="form-control" style="font-size: 12px; padding: 8px; background: rgba(15,23,42,0.6); border: 1px solid var(--panel-border); color: var(--text-primary); border-radius: 4px; width: 100%; box-sizing: border-box; outline: none;" value="72cff180-75d6-4dfb-a484-4b9b817d47a1" placeholder="Masukkan API Key...">
+                  </div>
+                </div>
+
+                <!-- Fonnte Config Group -->
+                <div id="groupFonnteConfig" style="display: none;">
+                  <div class="form-group" style="margin-bottom: 10px;">
+                    <label style="font-size: 11px; color: #4ade80; display:block; margin-bottom: 4px; font-weight: 600;">Fonnte Token (Authorization Header):</label>
+                    <input type="text" id="inputFonnteToken" class="form-control" style="font-size: 12px; padding: 8px; background: rgba(15,23,42,0.6); border: 1px solid rgba(34,197,94,0.3); color: var(--text-primary); border-radius: 4px; width: 100%; box-sizing: border-box; outline: none;" placeholder="Contoh: 4F9xZ8#mK1...">
+                    <span style="font-size: 10px; color: var(--text-muted); display: block; margin-top: 2px;">Dapatkan Token di Dashboard <a href="https://fonnte.com" target="_blank" style="color: #4ade80; text-decoration: underline;">fonnte.com</a></span>
+                  </div>
                 </div>
 
                 <div style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;">
@@ -472,9 +492,22 @@
                   <span style="font-size: 10px; color: var(--text-muted); display: block; margin-top: 2px;">Gunakan tag: <code>{name}</code> = Nama Pemesan, <code>{order_id}</code> = ID Pesanan</span>
                 </div>
 
-                <button id="btnSaveWaConfig" class="btn btn-primary btn-sm" style="width: 100%; font-size: 12px; padding: 8px; font-weight: 700; border-radius: 4px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; background: #22c55e;">
+                <button id="btnSaveWaConfig" class="btn btn-primary btn-sm" style="width: 100%; font-size: 12px; padding: 8px; font-weight: 700; border-radius: 4px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; background: #22c55e; margin-bottom: 12px;">
                   <i class="fa-solid fa-floppy-disk"></i> Simpan Pengaturan WhatsApp
                 </button>
+
+                <!-- Test WA Section -->
+                <div style="border-top: 1px dashed var(--panel-border); padding-top: 12px; margin-top: 8px;">
+                  <label style="font-size: 11px; color: #4ade80; display:block; margin-bottom: 4px; font-weight: 600;"><i class="fa-solid fa-vial"></i> Tes Kirim Pesan WA:</label>
+                  <div style="display: flex; gap: 6px;">
+                    <input type="text" id="inputTestWaTarget" class="form-control" style="font-size: 12px; padding: 8px; background: rgba(15,23,42,0.6); border: 1px solid var(--panel-border); color: var(--text-primary); border-radius: 4px; flex: 1; outline: none;" placeholder="Contoh: 081234567890">
+                    <button id="btnTestWa" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 8px 12px; font-weight: 600; white-space: nowrap; cursor: pointer; background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4);">
+                      <i class="fa-solid fa-paper-plane"></i> Kirim Tes
+                    </button>
+                  </div>
+                  <span id="testWaResult" style="font-size: 11px; display: block; margin-top: 6px; line-height: 1.3;"></span>
+                </div>
+              </div>
               </div>
 
               <!-- Global QRIS Payment Config -->
@@ -830,6 +863,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=2.0.4"></script>
+  <script src="app.js?v=2.0.5"></script>
 </body>
 </html>

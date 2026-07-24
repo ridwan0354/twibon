@@ -83,8 +83,10 @@ function read_config() {
         "gdrive_folder_id" => "",
         "gdrive_script_url" => "",
         "print_enabled" => true,
+        "wa_provider" => "waa",
         "wa_api_url" => "https://waa.galipatsistem.com/api",
         "wa_key" => "72cff180-75d6-4dfb-a484-4b9b817d47a1",
+        "fonnte_token" => "",
         "auto_wa_on_complete" => true,
         "auto_wa_on_order" => false,
         "wa_template_complete" => "Halo Kak {name},\n\nFoto Twibbon Anda sudah *SELESAI DICETAK* 🖨️✨\nSilakan diambil di meja panitia/operator.\n\nTerima kasih telah berpartisipasi!",
@@ -100,26 +102,26 @@ function read_config() {
     return array_merge($default, $data);
 }
 
-// Function to send WhatsApp message/media via Gateway API
+// Function to send WhatsApp message/media via Gateway API (WAA or Fonnte)
 function send_order_wa($order, $customText = null, $sendMedia = true) {
     $config = read_config();
-    $waKey = !empty($config['wa_key']) ? $config['wa_key'] : '72cff180-75d6-4dfb-a484-4b9b817d47a1';
-    $baseUrl = !empty($config['wa_api_url']) ? rtrim($config['wa_api_url'], '/') : 'https://waa.galipatsistem.com/api';
+    $provider = !empty($config['wa_provider']) ? $config['wa_provider'] : 'waa';
     
     if (empty($order['whatsapp'])) {
         return ["success" => false, "error" => "Nomor WhatsApp tidak valid."];
     }
 
-    $clean = preg_replace('/[^0-9]/', '', $order['whatsapp']);
-    if (strpos($clean, '0') === 0) {
-        $clean = '62' . substr($clean, 1);
+    $rawPhone = preg_replace('/[^0-9]/', '', $order['whatsapp']);
+    if (strpos($rawPhone, '0') === 0) {
+        $clean62 = '62' . substr($rawPhone, 1);
+        $clean08 = $rawPhone;
+    } elseif (strpos($rawPhone, '62') === 0) {
+        $clean62 = $rawPhone;
+        $clean08 = '0' . substr($rawPhone, 2);
+    } else {
+        $clean62 = '62' . $rawPhone;
+        $clean08 = '0' . $rawPhone;
     }
-    if (strpos($clean, '62') !== 0) {
-        $clean = '62' . $clean;
-    }
-    $jid = $clean . '@s.whatsapp.net';
-
-    $twibbonPath = !empty($order['twibbon_image']) ? __DIR__ . '/' . $order['twibbon_image'] : '';
 
     if ($customText !== null && $customText !== '') {
         $caption = $customText;
@@ -134,7 +136,63 @@ function send_order_wa($order, $customText = null, $sendMedia = true) {
         );
     }
 
-    if ($sendMedia && !empty($twibbonPath) && file_exists($twibbonPath)) {
+    $twibbonPath = (!empty($order['twibbon_image']) && file_exists(__DIR__ . '/' . $order['twibbon_image']))
+        ? __DIR__ . '/' . $order['twibbon_image']
+        : '';
+
+    // --- PROVIDER 1: FONNTE.COM ---
+    if ($provider === 'fonnte') {
+        $token = !empty($config['fonnte_token']) ? $config['fonnte_token'] : $config['wa_key'];
+        if (empty($token)) {
+            return ["success" => false, "error" => "Token Fonnte belum diisi di menu Admin."];
+        }
+
+        $postFields = [
+            'target' => $clean08,
+            'message' => $caption
+        ];
+
+        if ($sendMedia && !empty($twibbonPath)) {
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)) ? "https://" : "http://";
+            $domainName = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'twibbon.galipatsistem.com';
+            $imageUrl = $protocol . $domainName . '/' . ltrim($order['twibbon_image'], '/');
+            
+            $postFields['url'] = $imageUrl;
+            $postFields['filename'] = basename($twibbonPath);
+        }
+
+        $ch = curl_init('https://api.fonnte.com/send');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            "Authorization: " . $token
+        ]);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        $response = curl_exec($ch);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        if ($err) {
+            return ["success" => false, "error" => "Fonnte Curl error: " . $err];
+        }
+
+        $resData = json_decode($response, true);
+        if (is_array($resData)) {
+            if (isset($resData['status']) && $resData['status'] === false) {
+                return ["success" => false, "error" => isset($resData['reason']) ? $resData['reason'] : (isset($resData['detail']) ? $resData['detail'] : 'Fonnte error'), "response" => $resData];
+            }
+            return array_merge(["success" => true], $resData);
+        }
+        return ["success" => true, "raw_response" => $response];
+    }
+
+    // --- PROVIDER 2: WAA / CUSTOM GATEWAY ---
+    $waKey = !empty($config['wa_key']) ? $config['wa_key'] : '72cff180-75d6-4dfb-a484-4b9b817d47a1';
+    $baseUrl = !empty($config['wa_api_url']) ? rtrim($config['wa_api_url'], '/') : 'https://waa.galipatsistem.com/api';
+    $jid = $clean62 . '@s.whatsapp.net';
+
+    if ($sendMedia && !empty($twibbonPath)) {
         $mimeType = mime_content_type($twibbonPath) ?: 'image/png';
         $fileData = base64_encode(file_get_contents($twibbonPath));
         $dataUrl = "data:" . $mimeType . ";base64," . $fileData;
@@ -553,6 +611,31 @@ if ($method === 'POST') {
         exit();
     }
 
+    // Test WhatsApp Sending (Admin)
+    if ($action === 'test_wa') {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $target = isset($input['target']) ? trim($input['target']) : '';
+
+        if (empty($target)) {
+            http_response_code(400);
+            echo json_encode(["error" => "Nomor WhatsApp tujuan tes wajib diisi."]);
+            exit();
+        }
+
+        $dummyOrder = [
+            "id" => "TEST_" . rand(1000, 9999),
+            "name" => "Penguji (Test)",
+            "whatsapp" => $target,
+            "twibbon_image" => ""
+        ];
+
+        $testText = "🎉 *Tes Pengiriman WhatsApp Gateway*\n\nHalo! Ini adalah pesan tes pengiriman dari sistem Twibbon CAI Lombok.\nJika Anda menerima pesan ini, artinya konfigurasi WhatsApp Gateway Anda sudah *BERHASIL TERHUBUNG*! ✅";
+
+        $res = send_order_wa($dummyOrder, $testText, false);
+        echo json_encode($res);
+        exit();
+    }
+
     // Save Global Config
     if ($action === 'save_config') {
         $input = json_decode(file_get_contents('php://input'), true);
@@ -560,8 +643,10 @@ if ($method === 'POST') {
         if (isset($input['gdrive_folder_id'])) $config['gdrive_folder_id'] = trim($input['gdrive_folder_id']);
         if (isset($input['gdrive_script_url'])) $config['gdrive_script_url'] = trim($input['gdrive_script_url']);
         if (isset($input['print_enabled'])) $config['print_enabled'] = (bool)$input['print_enabled'];
+        if (isset($input['wa_provider'])) $config['wa_provider'] = trim($input['wa_provider']);
         if (isset($input['wa_api_url'])) $config['wa_api_url'] = trim($input['wa_api_url']);
         if (isset($input['wa_key'])) $config['wa_key'] = trim($input['wa_key']);
+        if (isset($input['fonnte_token'])) $config['fonnte_token'] = trim($input['fonnte_token']);
         if (isset($input['auto_wa_on_complete'])) $config['auto_wa_on_complete'] = (bool)$input['auto_wa_on_complete'];
         if (isset($input['auto_wa_on_order'])) $config['auto_wa_on_order'] = (bool)$input['auto_wa_on_order'];
         if (isset($input['wa_template_complete'])) $config['wa_template_complete'] = trim($input['wa_template_complete']);
